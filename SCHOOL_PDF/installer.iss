@@ -55,6 +55,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "bin\Release\net10.0-windows10.0.19041.0\win-{#Arch}\publish\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "bin\Release\net10.0-windows10.0.19041.0\win-{#Arch}\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "Resources\app.ico"; DestDir: "{app}\Resources"; Flags: ignoreversion
+Source: "Resources\pdf.ico"; DestDir: "{app}\Resources"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 ; 覆盖安装保留 Data：本节不登记 Data，安装期也无任何删除逻辑，同 AppId 升级只覆盖已登记文件
 
