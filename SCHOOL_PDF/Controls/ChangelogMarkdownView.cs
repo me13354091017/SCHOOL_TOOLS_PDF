@@ -26,7 +26,7 @@ public sealed class ChangelogMarkdownView : IDisposable
         Host = host;
     }
 
-    /// <summary>创建并初始化 WebView2（用户数据目录 = 运行目录 Data\WebView2）。</summary>
+    /// <summary>创建并初始化 WebView2（用户数据目录 = 应用数据目录 WebView2）。</summary>
     public static async Task<ChangelogMarkdownView> CreateAsync(double width, double height)
     {
         var webView = new Microsoft.Web.WebView2.WinForms.WebView2
@@ -44,7 +44,7 @@ public sealed class ChangelogMarkdownView : IDisposable
             UseExternalBrowserForLinks = true,
         };
         var manager = new MarkdownViewManager(webView, options);
-        var dataFolder = Path.Combine(AppContext.BaseDirectory, "Data", "WebView2");
+        var dataFolder = Path.Combine(AppDataPaths.DataDirectory, "WebView2");
         Directory.CreateDirectory(dataFolder);
         await manager.InitializeAsync(dataFolder);
         return new ChangelogMarkdownView(webView, manager, host);

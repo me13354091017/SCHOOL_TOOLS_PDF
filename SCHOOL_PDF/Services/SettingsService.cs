@@ -4,11 +4,11 @@ using SchoolPdf.Models;
 
 namespace SchoolPdf.Services;
 
-/// <summary>应用设置读写（运行目录 Data\Settings.json）。文件缺失/损坏时回退默认值。
+/// <summary>应用设置读写（用户数据目录 Settings.json）。文件缺失/损坏时回退默认值。
 /// Load 返回共享单例（画板 board 节与主设置共享同一对象图，避免设置页/画板互相覆盖未落盘的改动）。</summary>
 public static class SettingsService
 {
-    private static readonly string SettingsDir = Path.Combine(AppContext.BaseDirectory, "Data");
+    private static readonly string SettingsDir = AppDataPaths.DataDirectory;
     private static readonly string SettingsPath = Path.Combine(SettingsDir, "Settings.json");
 
     private static readonly JsonSerializerOptions SerOptions = new() { WriteIndented = true };
@@ -51,7 +51,7 @@ public static class SettingsService
         }
     }
 
-    /// <summary>保存设置到运行目录 Data\Settings.json（自动建目录）。</summary>
+    /// <summary>保存设置到用户数据目录 Settings.json（自动建目录）。</summary>
     public static void Save(AppSettings settings)
     {
         try

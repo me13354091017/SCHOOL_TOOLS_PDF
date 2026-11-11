@@ -4,13 +4,13 @@
 #endif
 
 #define MyAppName "SCHOOL_TOOLS_PDF"
-#define MyAppVersion "0.1.1"
+#define MyAppVersion "0.1.2"
 #define MyAppPublisher "SCHOOL Tools"
 #define MyAppURL "https://github.com/me13354091017/SCHOOL_TOOLS_PDF"
 #define MyAppExeName "SCHOOL_TOOLS_PDF.exe"
-#define MyAppAssocName MyAppName + " File"
-#define MyAppAssocExt ".myp"
-#define MyAppAssocKey StringChange(MyAppAssocName, " ", "") + MyAppAssocExt
+#define MyAppAssocName "PDF 文档"
+#define MyAppAssocExt ".pdf"
+#define MyAppAssocKey "SCHOOL_TOOLS_PDF.PDF"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
@@ -63,7 +63,7 @@ Source: "Resources\pdf.ico"; DestDir: "{app}\Resources"; Flags: ignoreversion
 [Registry]
 Root: HKA; Subkey: "Software\Classes\{#MyAppAssocExt}\OpenWithProgids"; ValueType: string; ValueName: "{#MyAppAssocKey}"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\Classes\{#MyAppAssocKey}"; ValueType: string; ValueName: ""; ValueData: "{#MyAppAssocName}"; Flags: uninsdeletekey
-Root: HKA; Subkey: "Software\Classes\{#MyAppAssocKey}\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"
+Root: HKA; Subkey: "Software\Classes\{#MyAppAssocKey}\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\Resources\pdf.ico,0"
 Root: HKA; Subkey: "Software\Classes\{#MyAppAssocKey}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
 
 [Icons]
@@ -164,11 +164,10 @@ begin
     Exec(ExpandConstant('{app}\{#MyAppExeName}'), '', '', SW_SHOW, ewNoWait, Rc);
 end;
 
-{ 卸载：解绑 .pdf 默认关联（仅当指向本应用）+ 清理自注册 ProgID + 删除整个安装文件夹（含 Data） }
+{ 卸载：解绑 .pdf 默认关联（仅当指向本应用）+ 清理自注册 ProgID。用户数据保留在 LocalAppData。 }
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   ProgId: String;
-  Dummy: Boolean;
 begin
   if CurUninstallStep = usPostUninstall then
   begin
@@ -191,7 +190,5 @@ begin
     { 4) 通知 Shell 刷新文件图标与打开方式缓存 }
     SHChangeNotify($08000000 {SHCNE_ASSOCCHANGED}, $1000, 0, 0);
 
-    { 5) 删除整个安装文件夹（含 Data、残余文件）；DelTree 返回值忽略，不弹错 }
-    Dummy := DelTree(ExpandConstant('{app}'), True, True, True);
   end;
 end;

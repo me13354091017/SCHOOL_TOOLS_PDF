@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace SchoolPdf.Models;
 
-/// <summary>应用设置（JSON 属性名对齐 Ink-Canvas-Artistry Settings.cs，序列化到运行目录 Data\Settings.json）。</summary>
+/// <summary>应用设置（JSON 属性名对齐 Ink-Canvas-Artistry Settings.cs，序列化到用户数据目录 Settings.json）。</summary>
 public class AppSettings
 {
     /// <summary>是否显示画笔光标（仅批注 Ink 模式强制钢笔光标；抄 ICA isShowCursor）。</summary>

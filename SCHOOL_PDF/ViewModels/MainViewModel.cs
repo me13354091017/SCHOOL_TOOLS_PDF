@@ -87,7 +87,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public ICommand OpenSettingsCommand { get; }
     public ICommand CloseSettingsCommand { get; }
 
-    /// <summary>应用设置（加载自运行目录 Data\Settings.json，由设置面板绑定修改）。</summary>
+    /// <summary>应用设置（加载自用户数据目录 Settings.json，由设置面板绑定修改）。</summary>
     public AppSettings Settings { get; }
 
     private bool _hasPdf;

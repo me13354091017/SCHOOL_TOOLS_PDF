@@ -2,6 +2,7 @@ using System.IO;
 using System.Text;
 using System.Windows;
 using System.Windows.Threading;
+using SchoolPdf.Services;
 using iNKORE.UI.WPF.Modern;
 
 namespace SchoolPdf;
@@ -13,9 +14,9 @@ public partial class App : Application
 
     private static readonly object LogLock = new();
 
-    /// <summary>日志路径：保存在运行目录 Data\ 下（error.log）。</summary>
+    /// <summary>日志路径：保存在用户数据目录下（error.log）。</summary>
     private static readonly string LogPath =
-        Path.Combine(AppContext.BaseDirectory, "Data", "error.log");
+        Path.Combine(AppDataPaths.DataDirectory, "error.log");
 
     private const int AttachParentProcess = -1;
 
@@ -99,7 +100,7 @@ public partial class App : Application
 #endif
     }
 
-    /// <summary>追加一行日志到运行目录下的错误日志文件。</summary>
+    /// <summary>追加一行日志到用户数据目录下的错误日志文件。</summary>
     public static void Log(string source, Exception? ex)
     {
         var sb = new StringBuilder();

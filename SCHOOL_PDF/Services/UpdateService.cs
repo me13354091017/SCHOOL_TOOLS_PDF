@@ -36,6 +36,7 @@ public sealed record UpdateCheckResult(string Version, string AssetUrl, string R
 public static class UpdateService
 {
     private const string ReleasesApiUrl = "https://api.github.com/repos/me13354091017/SCHOOL_TOOLS_PDF/releases";
+    private static readonly TimeSpan DownloadIdleTimeout = TimeSpan.FromSeconds(60);
 
     /// <summary>共享 HttpClient（超时关闭，各请求自行用 CancellationToken 限时）。</summary>
     private static readonly HttpClient Client = new() { Timeout = Timeout.InfiniteTimeSpan };
@@ -75,9 +76,9 @@ public static class UpdateService
     /// <summary>本机架构对应的安装包资产名（SCHOOL_PDF_x64_setup.exe 等）。</summary>
     public static string SetupFileName => $"SCHOOL_TOOLS_PDF_{GetArchitecture()}_setup.exe";
 
-    /// <summary>下载的安装包路径（运行目录 Data\Updates\，与 Data\error.log 同约定）。</summary>
+    /// <summary>下载的安装包路径（用户数据目录 Updates\）。</summary>
     public static string GetSetupPath() =>
-        Path.Combine(AppContext.BaseDirectory, "Data", "Updates", SetupFileName);
+        Path.Combine(AppDataPaths.DataDirectory, "Updates", SetupFileName);
 
     private static string GetArchitecture() => RuntimeInformation.ProcessArchitecture switch
     {
@@ -279,53 +280,61 @@ public static class UpdateService
     // ══════════ 下载 ══════════
 
     /// <summary>低优先级后台线程流式下载安装包到 Data\Updates\，按字节回报进度；失败删除半截文件。</summary>
-    public static Task DownloadAsync(UpdateCheckResult r, AppSettings s, IProgress<double>? progress, CancellationToken ct) =>
-        Task.Run(() =>
+    public static async Task DownloadAsync(UpdateCheckResult r, AppSettings s, IProgress<double>? progress, CancellationToken ct)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(DownloadIdleTimeout);
+        var token = timeout.Token;
+        var url = (s.UpdateProxy ?? "") + r.AssetUrl;
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        using var response = await Client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        var target = GetSetupPath();
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+
+        long total = response.Content.Headers.ContentLength ?? -1;
+        long done = 0;
+        double lastReported = -1;
+        var buffer = new byte[81920];
+
+        try
         {
-            // 满足「下载更新要在低优先级后台完成」。
-            Thread.CurrentThread.Priority = ThreadPriority.BelowNormal;
-
-            var url = (s.UpdateProxy ?? "") + r.AssetUrl;
-            using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            using var response = Client.Send(request, HttpCompletionOption.ResponseHeadersRead, ct);
-            response.EnsureSuccessStatusCode();
-
-            var target = GetSetupPath();
-            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-
-            long total = response.Content.Headers.ContentLength ?? -1;
-            long done = 0;
-            double lastReported = -1;
-            var buffer = new byte[81920];
-
-            try
+            await using var source = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
+            await using var destination = new FileStream(target, FileMode.Create, FileAccess.Write,
+                FileShare.None, buffer.Length, useAsync: true);
+            while (true)
             {
-                using var source = response.Content.ReadAsStream();
-                using var destination = File.Create(target);
-                int read;
-                while ((read = source.Read(buffer, 0, buffer.Length)) > 0)
+                timeout.CancelAfter(DownloadIdleTimeout);
+                int read = await source.ReadAsync(buffer.AsMemory(), token).ConfigureAwait(false);
+                if (read == 0)
+                    break;
+
+                await destination.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
+                done += read;
+                if (total > 0)
                 {
-                    ct.ThrowIfCancellationRequested();
-                    destination.Write(buffer, 0, read);
-                    done += read;
-                    if (total > 0)
+                    var percent = Math.Floor(done * 100.0 / total);
+                    if (percent != lastReported)
                     {
-                        var percent = Math.Floor(done * 100.0 / total);
-                        if (percent != lastReported)
-                        {
-                            lastReported = percent;
-                            progress?.Report(percent);
-                        }
+                        lastReported = percent;
+                        progress?.Report(percent);
                     }
                 }
-                progress?.Report(100);
             }
-            catch
-            {
-                try { File.Delete(target); } catch { /* 半截文件清理失败不阻塞 */ }
-                throw;
-            }
-        }, ct);
+            progress?.Report(100);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            try { File.Delete(target); } catch { /* 半截文件清理失败不阻塞 */ }
+            throw new TimeoutException("更新包下载超时，请检查网络后重试。");
+        }
+        catch
+        {
+            try { File.Delete(target); } catch { /* 半截文件清理失败不阻塞 */ }
+            throw;
+        }
+    }
 
     // ══════════ 主流程（手动检查与启动自动检查共用）══════════
 
@@ -431,6 +440,7 @@ public static class UpdateService
     {
         HttpRequestException => "无法连接到 GitHub（网络错误）",
         TaskCanceledException => "连接超时",
+        TimeoutException => ex.Message,
         IOException => "下载中断（网络错误）",
         InvalidOperationException => ex.Message,     // 资产缺失等带说明的业务异常
         _ => ex.Message,

@@ -749,13 +749,13 @@ public partial class SettingsView : System.Windows.Controls.UserControl
         SettingsService.Save(vm.Settings);
     }
 
-    /// <summary>打开墨迹数据存储目录（运行目录 Data\Ink）：不存在先创建，再交资源管理器打开。</summary>
+    /// <summary>打开墨迹数据存储目录（用户数据目录 Ink）：不存在先创建，再交资源管理器打开。</summary>
     private void OpenInkStorageDir_Click(object sender, RoutedEventArgs e)
-        => OpenStorageDirectory(Path.Combine(AppContext.BaseDirectory, "Data", "Ink"));
+        => OpenStorageDirectory(Path.Combine(AppDataPaths.DataDirectory, "Ink"));
 
-    /// <summary>打开应用数据存储目录（运行目录 Data，含 Settings.json / error.log / Ink\ 等）。</summary>
+    /// <summary>打开应用数据存储目录（含 Settings.json / error.log / Ink\ 等）。</summary>
     private void OpenAppDataDir_Click(object sender, RoutedEventArgs e)
-        => OpenStorageDirectory(Path.Combine(AppContext.BaseDirectory, "Data"));
+        => OpenStorageDirectory(AppDataPaths.DataDirectory);
 
     /// <summary>创建（如缺失）并用资源管理器打开指定目录；失败写 error.log，不影响设置页状态。</summary>
     private static void OpenStorageDirectory(string dir)

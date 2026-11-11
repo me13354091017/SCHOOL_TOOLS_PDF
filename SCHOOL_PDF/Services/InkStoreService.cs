@@ -7,14 +7,14 @@ using Microsoft.Data.Sqlite;
 
 namespace SchoolPdf.Services;
 
-/// <summary>单个 PDF 文档的墨迹持久化（SQLite WAL，存运行目录 Data\Ink\{文件名}.{XXH3-64}.db）。
-/// 判别方式：对 PDF 文件内容算 XXH3-64（System.IO.Hashing，输出 64 位），列 Data\Ink\*.db 取
+/// <summary>单个 PDF 文档的墨迹持久化（SQLite WAL，存用户数据目录 Ink\{文件名}.{XXH3-64}.db）。
+/// 判别方式：对 PDF 文件内容算 XXH3-64（System.IO.Hashing，输出 64 位），列 Ink\*.db 取
 /// 文件名最后一个 '.' 段（校验码段）比对——纯文件名解析，不打开任何 db；文件名的名称段仅人类可读。
 /// 线程模型：Save* 必须在 UI 线程调用（StrokeCollection 序列化有线程亲和），实际 SQL 写入经
 /// 任务链在后台串行执行；Load* 由调用方在后台块调用；Flush 由 UI 线程在关闭前调用。</summary>
 public sealed class InkStoreService : IDisposable
 {
-    private static readonly string InkDir = Path.Combine(AppContext.BaseDirectory, "Data", "Ink");
+    private static readonly string InkDir = Path.Combine(AppDataPaths.DataDirectory, "Ink");
 
     private readonly string _path;
     private readonly SemaphoreSlim _gate = new(1, 1);   // 串行化一切连接访问

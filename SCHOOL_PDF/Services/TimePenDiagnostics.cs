@@ -9,7 +9,7 @@ namespace SchoolPdf.Services;
 
 /// <summary>一次性取证（当前已暂停：TimePressureInk.cs 中的调用已注释，文件与实现保留）。
 /// 需要取证时取消 TimePressureInk.cs 里 Begin/Batch/Native/Flush 四处调用的注释即可。
-/// 内容：把时间笔锋收到的**原始**点批与原生笔画点列原样写入运行目录 Data\笔锋诊断.txt，
+/// 内容：把时间笔锋收到的**原始**点批与原生笔画点列原样写入用户数据目录 笔锋诊断.txt，
 /// 不做任何去重/排序/插值，用于静态比对"刺"来自哪两个点。只记录前 8 笔，避免文件无限增长。</summary>
 internal static class TimePenDiagnostics
 {
@@ -69,7 +69,7 @@ internal static class TimePenDiagnostics
                 return;
             try
             {
-                string dir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
+                string dir = AppDataPaths.DataDirectory;
                 Directory.CreateDirectory(dir);
                 File.AppendAllText(Path.Combine(dir, "笔锋诊断.txt"), Buffer.ToString());
             }
