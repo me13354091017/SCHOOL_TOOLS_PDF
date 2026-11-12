@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.IO;
 using System.Runtime.InteropServices;
 using Docnet.Core;
 
@@ -11,6 +13,20 @@ namespace SchoolPdf.Services;
 #pragma warning disable SYSLIB1054
 internal static class PdfiumInterop
 {
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PdfiumFileWrite
+    {
+        public int Version;
+        public IntPtr WriteBlock;
+    }
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int WriteBlockCallback(IntPtr fileWrite, IntPtr data, uint size);
+
+    private static readonly WriteBlockCallback SaveWriteBlock = WriteToStream;
+    private static readonly IntPtr SaveWriteBlockPointer = Marshal.GetFunctionPointerForDelegate(SaveWriteBlock);
+    private static readonly ConcurrentDictionary<IntPtr, Stream> SaveStreams = new();
+
     /// <summary>与 Docnet 共用的 PDFium 全局锁（反射 DocLib.Lock，保证与 Docnet 原生调用互斥）。</summary>
     internal static readonly object PdfiumLock =
         typeof(DocLib).GetField("Lock",
@@ -53,6 +69,125 @@ internal static class PdfiumInterop
     private static extern void FPDF_ClosePageRaw(IntPtr page);
     internal static void FPDF_ClosePage(IntPtr page)
     { lock (PdfiumLock) FPDF_ClosePageRaw(page); }
+
+    [DllImport("pdfium.dll", EntryPoint = "FPDFPageObj_NewImageObj", CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr FPDFPageObj_NewImageObjRaw(IntPtr document);
+
+    [DllImport("pdfium.dll", EntryPoint = "FPDFImageObj_SetBitmap", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int FPDFImageObj_SetBitmapRaw(IntPtr pages, int pageCount, IntPtr imageObject, IntPtr bitmap);
+
+    [DllImport("pdfium.dll", EntryPoint = "FPDFImageObj_SetMatrix", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int FPDFImageObj_SetMatrixRaw(IntPtr imageObject, double a, double b, double c, double d, double e, double f);
+
+    [DllImport("pdfium.dll", EntryPoint = "FPDFPage_InsertObject", CallingConvention = CallingConvention.Cdecl)]
+    private static extern void FPDFPage_InsertObjectRaw(IntPtr page, IntPtr pageObject);
+
+    [DllImport("pdfium.dll", EntryPoint = "FPDFPage_GenerateContent", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int FPDFPage_GenerateContentRaw(IntPtr page);
+
+    [DllImport("pdfium.dll", EntryPoint = "FPDFPageObj_Destroy", CallingConvention = CallingConvention.Cdecl)]
+    private static extern void FPDFPageObj_DestroyRaw(IntPtr pageObject);
+
+    [DllImport("pdfium.dll", EntryPoint = "FPDF_SaveAsCopy", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int FPDF_SaveAsCopyRaw(IntPtr document, IntPtr fileWrite, uint flags);
+
+    internal static void AddInkOverlay(IntPtr document, int pageIndex, int width, int height, byte[] pixels)
+    {
+        lock (PdfiumLock)
+        {
+            if (document == IntPtr.Zero || width <= 0 || height <= 0 || pixels.Length < checked(width * height * 4))
+                throw new ArgumentException("批注图像尺寸或数据无效。", nameof(pixels));
+
+            IntPtr page = FPDF_LoadPageRaw(document, pageIndex);
+            if (page == IntPtr.Zero)
+                throw new InvalidOperationException($"无法打开 PDF 第 {pageIndex + 1} 页以写入批注。");
+
+            IntPtr imageObject = IntPtr.Zero;
+            IntPtr bitmap = IntPtr.Zero;
+            IntPtr pageArray = IntPtr.Zero;
+            var pinned = GCHandle.Alloc(pixels, GCHandleType.Pinned);
+            bool inserted = false;
+            try
+            {
+                bitmap = FPDFBitmap_CreateExRaw(width, height, FPDFBitmapBgra,
+                    pinned.AddrOfPinnedObject(), checked(width * 4));
+                if (bitmap == IntPtr.Zero)
+                    throw new InvalidOperationException("PDFium 无法创建批注图像。");
+
+                imageObject = FPDFPageObj_NewImageObjRaw(document);
+                if (imageObject == IntPtr.Zero)
+                    throw new InvalidOperationException("PDFium 无法创建 PDF 图像对象。");
+
+                pageArray = Marshal.AllocHGlobal(IntPtr.Size);
+                Marshal.WriteIntPtr(pageArray, page);
+                if (FPDFImageObj_SetBitmapRaw(pageArray, 1, imageObject, bitmap) == 0)
+                    throw new InvalidOperationException("PDFium 无法将批注图像写入 PDF。");
+
+                double pageWidth = FPDF_GetPageWidthRaw(page);
+                double pageHeight = FPDF_GetPageHeightRaw(page);
+                if (pageWidth <= 0 || pageHeight <= 0
+                    || FPDFImageObj_SetMatrixRaw(imageObject, pageWidth, 0, 0, pageHeight, 0, 0) == 0)
+                    throw new InvalidOperationException("PDFium 无法设置批注图像位置。");
+
+                FPDFPage_InsertObjectRaw(page, imageObject);
+                inserted = true;
+                if (FPDFPage_GenerateContentRaw(page) == 0)
+                    throw new InvalidOperationException("PDFium 无法生成含批注的页面内容。");
+            }
+            finally
+            {
+                if (!inserted && imageObject != IntPtr.Zero)
+                    FPDFPageObj_DestroyRaw(imageObject);
+                if (pageArray != IntPtr.Zero)
+                    Marshal.FreeHGlobal(pageArray);
+                if (bitmap != IntPtr.Zero)
+                    FPDFBitmap_DestroyRaw(bitmap);
+                pinned.Free();
+                FPDF_ClosePageRaw(page);
+            }
+        }
+    }
+
+    internal static bool SaveAsCopy(IntPtr document, Stream output)
+    {
+        lock (PdfiumLock)
+        {
+            IntPtr fileWrite = Marshal.AllocHGlobal(Marshal.SizeOf<PdfiumFileWrite>());
+            try
+            {
+                var writer = new PdfiumFileWrite { Version = 1, WriteBlock = SaveWriteBlockPointer };
+                Marshal.StructureToPtr(writer, fileWrite, false);
+                SaveStreams[fileWrite] = output;
+                bool saved = FPDF_SaveAsCopyRaw(document, fileWrite, 0) != 0;
+                if (saved && output is FileStream fileStream)
+                    fileStream.Flush(true);
+                return saved;
+            }
+            finally
+            {
+                SaveStreams.TryRemove(fileWrite, out _);
+                Marshal.FreeHGlobal(fileWrite);
+            }
+        }
+    }
+
+    private static int WriteToStream(IntPtr fileWrite, IntPtr data, uint size)
+    {
+        if (!SaveStreams.TryGetValue(fileWrite, out var output) || size > int.MaxValue)
+            return 0;
+        try
+        {
+            int length = (int)size;
+            byte[] buffer = GC.AllocateUninitializedArray<byte>(length);
+            Marshal.Copy(data, buffer, 0, length);
+            output.Write(buffer, 0, length);
+            return 1;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
 
     // ---- 页面尺寸 ------------------------------------------------------------------------
 

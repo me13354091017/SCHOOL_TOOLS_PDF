@@ -3,11 +3,14 @@ using System.Runtime.InteropServices;
 using System.Windows.Ink;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using SchoolPdf.Models;
 
 namespace SchoolPdf.Services;
 
 /// <summary>页面渲染尺寸。</summary>
 public readonly record struct PageSize(int Width, int Height);
+
+public sealed record PdfInkOverlay(int PageIndex, int Width, int Height, byte[] Pixels);
 
 /// <summary>缩略图墨迹快照（请求入队时在 UI 线程取引用数组快照——微秒级，本次请求只读，后台安全绘制）。</summary>
 public sealed record ThumbnailInk(Stroke[] Strokes, double CoordW, double CoordH);
@@ -33,6 +36,8 @@ public sealed class PdfRenderService : IDisposable
 
     private IntPtr _doc;   // FPDF 文档句柄：OpenDocument 打开，服务生命周期内复用；所有访问持 PdfiumLock
     private int _pageCount;
+    private string? _documentPath;
+    private string? _documentPassword;
 
     private readonly Dictionary<long, ImageSource> _baseCache = new();
     private readonly List<long> _baseLruOrder = new();
@@ -63,6 +68,8 @@ public sealed class PdfRenderService : IDisposable
     private readonly Dictionary<int, int> _thumbInkVersions = new();
 
     public int PageCount => _pageCount;
+    public string? DocumentPath => _documentPath;
+    public string? DocumentPassword => _documentPassword;
 
     public void OpenDocument(string path, string? password = null)
     {
@@ -79,7 +86,130 @@ public sealed class PdfRenderService : IDisposable
                 throw new InvalidOperationException("PDFium 无法打开文档（FPDF_LoadDocument 返回空句柄）");
             }
             _pageCount = PdfiumInterop.FPDF_GetPageCount(_doc);
+            _documentPath = Path.GetFullPath(path);
+            _documentPassword = password;
         }
+    }
+
+    public static PdfInkOverlay RenderInkOverlay(PageModel page)
+    {
+        double coordinateWidth = page.ContentWidth;
+        double coordinateHeight = page.ContentHeight;
+        if (coordinateWidth <= 0 || coordinateHeight <= 0)
+            throw new InvalidOperationException($"第 {page.PageIndex + 1} 页尚无有效的墨迹坐标区域。");
+        double pixelLimitScale = Math.Sqrt(16_777_216.0 / (coordinateWidth * coordinateHeight));
+        double scale = Math.Min(2.0, Math.Min(pixelLimitScale,
+            Math.Min(8192.0 / coordinateWidth, 8192.0 / coordinateHeight)));
+        int width = Math.Max(1, (int)Math.Ceiling(coordinateWidth * scale));
+        int height = Math.Max(1, (int)Math.Ceiling(coordinateHeight * scale));
+
+        var visual = new DrawingVisual();
+        using (var context = visual.RenderOpen())
+        {
+            context.PushTransform(new ScaleTransform(width / coordinateWidth, height / coordinateHeight));
+            foreach (var stroke in page.Strokes)
+                stroke.Draw(context);
+            context.Pop();
+        }
+
+        var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(visual);
+        int stride = checked(width * 4);
+        byte[] pixels = GC.AllocateUninitializedArray<byte>(checked(stride * height));
+        bitmap.CopyPixels(pixels, stride, 0);
+        return new PdfInkOverlay(page.PageIndex, width, height, pixels);
+    }
+
+    public void SaveDocumentWithInk(IReadOnlyList<PdfInkOverlay> overlays)
+    {
+        string sourcePath = _documentPath ?? throw new InvalidOperationException("没有打开的 PDF 文件。");
+        string? password = _documentPassword;
+        int expectedPageCount = _pageCount;
+        string tempPath = Path.Combine(Path.GetDirectoryName(sourcePath)!, $".{Path.GetFileName(sourcePath)}.{Guid.NewGuid():N}.tmp");
+        string backupPath = tempPath + ".bak";
+        IntPtr saveDocument = PdfiumInterop.FPDF_LoadDocument(sourcePath, password);
+        if (saveDocument == IntPtr.Zero)
+            throw new InvalidOperationException("无法重新打开原 PDF 以保存批注。");
+
+        try
+        {
+            foreach (var overlay in overlays)
+                PdfiumInterop.AddInkOverlay(saveDocument, overlay.PageIndex, overlay.Width, overlay.Height, overlay.Pixels);
+
+            using (var output = new FileStream(tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                if (!PdfiumInterop.SaveAsCopy(saveDocument, output))
+                    throw new InvalidOperationException("PDFium 保存批注失败，原文件未更改。");
+            }
+        }
+        catch
+        {
+            try { File.Delete(tempPath); } catch { }
+            throw;
+        }
+        finally
+        {
+            PdfiumInterop.FPDF_CloseDocument(saveDocument);
+        }
+
+        IntPtr verificationDocument = PdfiumInterop.FPDF_LoadDocument(tempPath, password);
+        if (verificationDocument == IntPtr.Zero)
+        {
+            File.Delete(tempPath);
+            throw new InvalidOperationException("保存结果无法重新打开，原文件未更改。");
+        }
+
+        int savedPageCount;
+        try
+        {
+            savedPageCount = PdfiumInterop.FPDF_GetPageCount(verificationDocument);
+            if (savedPageCount != expectedPageCount)
+                throw new InvalidOperationException("保存结果页数校验失败，原文件未更改。");
+
+            for (int pageIndex = 0; pageIndex < savedPageCount; pageIndex++)
+            {
+                var (width, height) = PdfiumInterop.GetPageSize(verificationDocument, pageIndex);
+                if (width <= 0 || height <= 0
+                    || PdfiumInterop.FPDF_RenderPage(verificationDocument, pageIndex, 32, 32) == null)
+                    throw new InvalidOperationException($"保存结果第 {pageIndex + 1} 页校验失败，原文件未更改。");
+            }
+        }
+        catch
+        {
+            File.Delete(tempPath);
+            throw;
+        }
+        finally
+        {
+            PdfiumInterop.FPDF_CloseDocument(verificationDocument);
+        }
+
+        CloseDocument();
+        try
+        {
+            File.Replace(tempPath, sourcePath, backupPath);
+            try
+            {
+                OpenDocument(sourcePath, password);
+            }
+            catch
+            {
+                CloseDocument();
+                File.Replace(backupPath, sourcePath, null);
+                OpenDocument(sourcePath, password);
+                throw;
+            }
+        }
+        catch
+        {
+            if (_doc == IntPtr.Zero && File.Exists(sourcePath))
+                OpenDocument(sourcePath, password);
+            try { File.Delete(tempPath); } catch { }
+            throw;
+        }
+
+        try { File.Delete(backupPath); }
+        catch (Exception ex) { App.Log("PDF保存.清理备份", ex); }
     }
 
     /// <summary>文档受密码保护（FPDF_ERR_PASSWORD=4）：需要密码或所输密码错误，弹密码框重试。</summary>
@@ -99,18 +229,6 @@ public sealed class PdfRenderService : IDisposable
             int renderWidth = Math.Max(1, targetWidth);
             int renderHeight = Math.Max(1, (int)Math.Round(h / w * renderWidth));
             return new PageSize(renderWidth, renderHeight);
-        }
-    }
-
-    /// <summary>原始页面点尺寸（1/72 inch，未缩放）。供打印按真实物理尺寸排版。</summary>
-    public (double Width, double Height) GetPageSizePoints(int pageIndex)
-    {
-        lock (PdfiumInterop.PdfiumLock)
-        {
-            var doc = _doc;
-            if (doc == IntPtr.Zero)
-                throw new InvalidOperationException("文档未打开");
-            return PdfiumInterop.GetPageSize(doc, pageIndex);
         }
     }
 
@@ -343,11 +461,11 @@ public sealed class PdfRenderService : IDisposable
             }
             else
             {
-                // 有墨迹：先编码未旋转位图，再走打印预览同款复合管线（内部缩放墨迹 + 旋转输出）
+                // 有墨迹：先编码未旋转位图，再走页面墨迹复合管线（内部缩放墨迹 + 旋转输出）
                 var unrotated = EncodeThumbnail(raw, contentPxW, contentPxH);
                 if (unrotated == null)
                     return null;
-                bmp = PrintService.CompositePageWithInk(unrotated, ink.Strokes,
+                bmp = InkCompositionService.CompositePageWithInk(unrotated, ink.Strokes,
                     contentPxW, contentPxH, ink.CoordW, ink.CoordH, rotation);
             }
             if (bmp == null)
@@ -622,6 +740,8 @@ public sealed class PdfRenderService : IDisposable
                 PdfiumInterop.FPDF_CloseDocument(doc);
         }
         _pageCount = 0;
+        _documentPath = null;
+        _documentPassword = null;
     }
 
     public void Dispose() => CloseDocument();

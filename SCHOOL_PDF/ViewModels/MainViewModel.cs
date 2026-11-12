@@ -397,23 +397,39 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         InkTool.LoadFromSettings(Settings);
     }
 
-    /// <summary>构建打印数据源（UI 线程）：读取每页物理点尺寸并换算为 96 DIP/inch，
-    /// 按当前页面旋转角给出显示尺寸。墨迹与渲染服务由返回值携带给打印对话框。</summary>
-    internal PrintDocumentSource CreatePrintSource()
+    internal async Task<int> SaveAnnotationsToOriginalPdfAsync()
     {
-        int count = Math.Min(_pdf.PageCount, Pages.Count);
-        var list = new List<PrintPageInfo>(count);
-        for (int i = 0; i < count; i++)
+        if (!HasPdf || Pages.Count == 0)
+            return 0;
+
+        string path = _pdf.DocumentPath ?? throw new InvalidOperationException("没有打开的 PDF 文件。");
+        string? password = _pdf.DocumentPassword;
+        var overlays = new List<PdfInkOverlay>();
+        foreach (var page in Pages)
         {
-            var (pw, ph) = _pdf.GetPageSizePoints(i);
-            double cw = pw * 96.0 / 72.0;
-            double ch = ph * 96.0 / 72.0;
-            var page = Pages[i];
-            bool swap = page.Rotation is 90 or 270;
-            list.Add(new PrintPageInfo(i, page, cw, ch,
-                swap ? ch : cw, swap ? cw : ch, page.Rotation));
+            if (page.Strokes.Count == 0)
+                continue;
+            if (page.ContentWidth <= 0 || page.ContentHeight <= 0)
+                throw new InvalidOperationException($"第 {page.PageIndex + 1} 页尚未准备好，暂时无法保存。");
+            overlays.Add(PdfRenderService.RenderInkOverlay(page));
         }
-        return new PrintDocumentSource(_pdf, list);
+
+        if (overlays.Count == 0)
+            return 0;
+
+        IsOpeningPdf = true;
+        try
+        {
+            await Task.Run(() => _pdf.SaveDocumentWithInk(overlays));
+            await OpenPdfFile(path, password);
+            if (!HasPdf || _pdf.PageCount == 0)
+                throw new InvalidOperationException("批注已写入文件，但重新载入 PDF 失败。");
+            return overlays.Count;
+        }
+        finally
+        {
+            IsOpeningPdf = false;
+        }
     }
 
     private async void OpenPdf()

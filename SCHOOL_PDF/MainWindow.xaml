@@ -12,7 +12,7 @@
         Width="1000" Height="650"
         WindowState="Maximized"
         WindowStartupLocation="CenterScreen"
-        Icon="Resources/app.ico"
+        Icon="pack://application:,,,/Resources/app.ico"
         Background="{DynamicResource AppBackgroundBrush}"
         ui:WindowHelper.UseModernWindowStyle="True"
         ui:WindowHelper.SystemBackdropType="Mica"
@@ -48,7 +48,7 @@
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="{DynamicResource PressedBackgroundBrush}"/>
                             </Trigger>
-                            <!-- 禁用态灰置（打印弹窗预览翻页到首/末张时按钮变灰；图标内联写死前景色，故用 Opacity 统一压暗） -->
+                            <!-- 禁用态灰置：图标内联写死前景色，统一用 Opacity 压暗 -->
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
                             </Trigger>
@@ -221,12 +221,7 @@
                                     <ic:FluentIcon Icon="DocumentAdd" IconVariant="Regular" FontSize="24"/>
                                 </MenuItem.Icon>
                             </MenuItem>
-                            <MenuItem Style="{StaticResource SubMenuItemStyle}" Header="打印 PDF" Click="PrintPdf_Click">
-                                <MenuItem.Icon>
-                                    <ic:FluentIcon Icon="Print" IconVariant="Regular" FontSize="24"/>
-                                </MenuItem.Icon>
-                            </MenuItem>
-                            <MenuItem Style="{StaticResource SubMenuItemStyle}" Header="保存批注到 PDF..." Click="SaveAnnotatedPdf_Click">
+                            <MenuItem Style="{StaticResource SubMenuItemStyle}" Header="保存到原 PDF" Click="SaveAnnotationsToPdf_Click">
                                 <MenuItem.Icon>
                                     <ic:FluentIcon Icon="Save" IconVariant="Regular" FontSize="24"/>
                                 </MenuItem.Icon>
@@ -243,9 +238,9 @@
                             </MenuItem>
                         </MenuItem>
                     </Menu>
-                    <Button Style="{StaticResource IconButton}" Click="PrintPdf_Click" ToolTip="打印 PDF">
+                    <Button Style="{StaticResource IconButton}" Click="SaveAnnotationsToPdf_Click" ToolTip="保存到原 PDF">
                         <Grid Width="32" Height="32">
-                            <ic:FluentIcon Icon="Print" IconVariant="Regular" FontSize="24"
+                            <ic:FluentIcon Icon="Save" IconVariant="Regular" FontSize="24"
                                            Foreground="{DynamicResource ToolbarForegroundBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Grid>
                     </Button>

@@ -3,11 +3,11 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ic="clr-namespace:FluentIcons.Wpf;assembly=FluentIcons.Wpf"
         xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
-        Title="出现错误 - SchoolPdf"
+        Title="出现错误 - SCHOOL_TOOLS_PDF"
         SizeToContent="WidthAndHeight"
         ResizeMode="CanMinimize"
         WindowStartupLocation="CenterScreen"
-        Icon="Resources/app.ico"
+        Icon="pack://application:,,,/Resources/app.ico"
         Background="{DynamicResource AppBackgroundBrush}"
         ui:WindowHelper.UseModernWindowStyle="True"
         ui:WindowHelper.SystemBackdropType="Mica"
@@ -60,7 +60,7 @@
             </Grid.ColumnDefinitions>
 
             <TextBlock Grid.Column="0" VerticalAlignment="Center">
-                <Hyperlink Tag="https://github.com/Eason-2012/SchoolPdf/issues/new"
+                <Hyperlink Tag="https://github.com/me13354091017/SCHOOL_TOOLS_PDF/issues/new"
                            Click="ReportIssue_Click">向开发者报告问题</Hyperlink>
             </TextBlock>
 
