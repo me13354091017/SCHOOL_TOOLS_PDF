@@ -29,11 +29,15 @@ public sealed class PrintDialogView : UserControl
 
     public bool IsPrinting => _printing;
 
+    public bool IsPdfPrinterAvailable => _queues.Any(queue =>
+        string.Equals(queue.Name, "Microsoft Print to PDF", StringComparison.OrdinalIgnoreCase));
+
     private readonly PrintDocumentSource _source;
     private readonly BitmapSource?[] _pages;
     private readonly int[] _rasterW;
     private readonly int[] _rasterH;
     private readonly double[] _pageDipW;
+    private readonly bool _preferPdfPrinter;
     private readonly double[] _pageDipH;
     private readonly int _previewBox;
 
@@ -98,9 +102,10 @@ public sealed class PrintDialogView : UserControl
     private static bool _lastGrayscale;
     private static bool _lastDuplex;
 
-    public PrintDialogView(PrintDocumentSource source)
+    public PrintDialogView(PrintDocumentSource source, bool preferPdfPrinter = false)
     {
         _source = source;
+        _preferPdfPrinter = preferPdfPrinter;
         int count = source.Pages.Count;
         _pages = new BitmapSource?[count];
         _rasterW = new int[count];
@@ -514,9 +519,11 @@ public sealed class PrintDialogView : UserControl
         foreach (var queue in _queues)
             _printerCombo.Items.Add(queue.FullName);
 
-        int selected = !string.IsNullOrEmpty(_lastPrinter)
-            ? _queues.FindIndex(q => q.FullName == _lastPrinter)
-            : -1;
+        int selected = _preferPdfPrinter
+            ? _queues.FindIndex(q => string.Equals(q.Name, "Microsoft Print to PDF", StringComparison.OrdinalIgnoreCase))
+            : !string.IsNullOrEmpty(_lastPrinter)
+                ? _queues.FindIndex(q => q.FullName == _lastPrinter)
+                : -1;
         if (selected < 0)
             selected = set.DefaultQueue != null ? _queues.FindIndex(q => q.FullName == set.DefaultQueue.FullName) : -1;
         if (_queues.Count > 0)

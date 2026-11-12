@@ -11,6 +11,12 @@ public partial class MainWindow
     /// <summary>打印 PDF（文件菜单与工具栏图标按钮共用）：
     /// 在主窗口内弹出 iUWM ContentDialog，按钮为「打印」「取消」。</summary>
     private async void PrintPdf_Click(object sender, RoutedEventArgs e)
+        => await ShowPrintDialogAsync(saveToPdf: false);
+
+    private async void SaveAnnotatedPdf_Click(object sender, RoutedEventArgs e)
+        => await ShowPrintDialogAsync(saveToPdf: true);
+
+    private async Task ShowPrintDialogAsync(bool saveToPdf)
     {
         if (!_viewModel.HasPdf || _viewModel.Pages.Count == 0)
             return;
@@ -19,7 +25,7 @@ public partial class MainWindow
         try
         {
             var source = _viewModel.CreatePrintSource();
-            view = new PrintDialogView(source);
+            view = new PrintDialogView(source, preferPdfPrinter: saveToPdf);
         }
         catch (Exception ex)
         {
@@ -28,11 +34,18 @@ public partial class MainWindow
             return;
         }
 
+        if (saveToPdf && !view.IsPdfPrinterAvailable)
+        {
+            view.Cancel();
+            ShowFloatingTip("未检测到 Microsoft Print to PDF，请在 Windows 中启用该打印机后重试。", InfoBarSeverity.Error);
+            return;
+        }
+
         var dialog = new ContentDialog
         {
-            Title = "打印 PDF",
+            Title = saveToPdf ? "保存批注到 PDF" : "打印 PDF",
             Content = view,
-            PrimaryButtonText = "打印",
+            PrimaryButtonText = saveToPdf ? "保存到 PDF" : "打印",
             CloseButtonText = "取消",
             DefaultButton = ContentDialogButton.Primary,
             Owner = this,
@@ -86,7 +99,9 @@ public partial class MainWindow
             view.Cancel();   // 停止后台预览渲染并释放打印服务器
 
             if (view.PrintedPageCount > 0)
-                ShowFloatingTip($"已发送 {view.PrintedPageCount} 页到打印机", InfoBarSeverity.Success);
+                ShowFloatingTip(saveToPdf
+                    ? $"已提交 {view.PrintedPageCount} 页，请按系统提示选择 PDF 保存位置"
+                    : $"已发送 {view.PrintedPageCount} 页到打印机", InfoBarSeverity.Success);
         }
     }
 

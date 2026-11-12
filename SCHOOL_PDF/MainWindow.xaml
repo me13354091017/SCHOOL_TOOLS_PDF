@@ -226,6 +226,11 @@
                                     <ic:FluentIcon Icon="Print" IconVariant="Regular" FontSize="24"/>
                                 </MenuItem.Icon>
                             </MenuItem>
+                            <MenuItem Style="{StaticResource SubMenuItemStyle}" Header="保存批注到 PDF..." Click="SaveAnnotatedPdf_Click">
+                                <MenuItem.Icon>
+                                    <ic:FluentIcon Icon="Save" IconVariant="Regular" FontSize="24"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
                             <MenuItem Style="{StaticResource SubMenuItemStyle}" Header="回到主页" Command="{Binding GoHomeCommand}">
                                 <MenuItem.Icon>
                                     <ic:FluentIcon Icon="Home" IconVariant="Regular" FontSize="24"/>
