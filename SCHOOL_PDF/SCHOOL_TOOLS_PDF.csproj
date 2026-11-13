@@ -44,7 +44,7 @@
     <Resource Include="Resources\Icons-png\checked-white.png" />
     <Resource Include="Resources\Icons-png\checked-black.png" />
     <Resource Include="Resources\dependencies.g.json" />
-    <Resource Include="Resources\LICENSE" />
+    <Resource Include="LICENSE" />
   </ItemGroup>
 
   <ItemGroup>
