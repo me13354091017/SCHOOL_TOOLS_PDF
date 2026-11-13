@@ -1,0 +1,39 @@
+name: Build and Release
+
+# 只在 workflow 自身变更时触发：本仓库日常提交不上传安装包，
+# 需要打包发版时改一次版本号随同本文件推送即可。
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/release.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish win-x64 (self-contained)
+        run: dotnet publish SCHOOL_PDF/SCHOOL_TOOLS_PDF.csproj -c Release -r win-x64 --self-contained
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Compile installer
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DArch=x64 SCHOOL_PDF\installer.iss'
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create v0.1.10 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" `
+            --title "v0.1.10 设置界面触摸滚动修复" `
+            --notes "修复设置界面在触摸屏上无法滑动的问题：WPF 的 ScrollViewer 默认不把手指拖动当作滚动（只能拖滚动条）。现在设置页及各弹窗内的滚动容器都开启了垂直平移；鼠标滚轮与 PDF 页面书写区的手势不受影响。"
