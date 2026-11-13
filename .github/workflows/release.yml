@@ -1,12 +1,12 @@
 name: Build and Release
 
-# 只在 workflow 自身变更时触发：本仓库日常提交不上传安装包，
-# 需要打包发版时改一次版本号随同本文件推送即可。
+# 只在 workflow 自身变更时触发（日常提交不打包）；也支持在 Actions 页面手动 Run workflow。
 on:
   push:
     branches: [main]
     paths:
       - '.github/workflows/release.yml'
+  workflow_dispatch:
 
 permissions:
   contents: write
