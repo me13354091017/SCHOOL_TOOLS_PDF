@@ -4,7 +4,7 @@
 #endif
 
 #define MyAppName "SCHOOL_TOOLS_PDF"
-#define MyAppVersion "0.1.5"
+#define MyAppVersion "0.1.6"
 #define MyAppPublisher "SCHOOL Tools"
 #define MyAppURL "https://github.com/me13354091017/SCHOOL_TOOLS_PDF"
 #define MyAppExeName "SCHOOL_TOOLS_PDF.exe"

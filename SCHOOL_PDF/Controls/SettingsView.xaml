@@ -912,7 +912,7 @@
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                         <ikw:SimpleStackPanel Spacing="4" Margin="0,0,24,24">
                             <ui:SettingsCard Header="自动保存墨迹书写数据"
-                                             Description="采用侧车存储，不修改原PDF文件，适合教学环境，后续会加直接保存PDF文件的存储功能">
+                                            Description="批注默认采用侧车存储，不修改原 PDF；需要写入文件时，可使用“保存到原 PDF”。">
                                 <ui:SettingsCard.HeaderIcon>
                                     <ic:FluentIcon Icon="SaveArrowRight" IconVariant="Regular" IconSize="Resizable" FontSize="36"/>
                                 </ui:SettingsCard.HeaderIcon>
