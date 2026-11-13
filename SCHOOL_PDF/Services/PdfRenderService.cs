@@ -29,6 +29,12 @@ public sealed class PdfRenderService : IDisposable
     /// <summary>缩略图渲染结果缓存上限（页）。</summary>
     private const int MaxCachedThumbnails = 96;
 
+    /// <summary>缩略图的逻辑显示宽度（DIP）：与 MainViewModel.ThumbnailWidth 保持一致。
+    /// 渲染时会按 DPI 缩放放大像素（140 DIP 在 150% 屏上是 210px），位图的 DPI 元数据必须
+    /// 按这个逻辑宽度烘焙——否则 Image(Stretch=None) 会按像素当 DIP 绘制，天然尺寸大出
+    /// 1.5 倍，超出槽位的部分直接被裁掉（缩略图“显示不全”）。</summary>
+    private const int ThumbnailLogicalWidth = 140;
+
     /// <summary>base 渲染缓存字节上限（对齐 KillerPDF 每标签 160MB）：页尺寸大或高 DPI 时，
     /// 仅靠 8 页的页数上限不控总量，叠加字节预算后按"距离刚渲染页最远"淘汰。</summary>
     private const long MaxCachedBaseBytes = 160L << 20;
@@ -486,7 +492,7 @@ public sealed class PdfRenderService : IDisposable
             {
                 // 无墨迹：保持原路径（像素旋转 → 冻结位图），不做 PNG 编解码
                 var (rotated, pxW, pxH) = BitmapHelpers.RotateBitmap(raw, contentPxW, contentPxH, rotation);
-                bmp = CreateFrozenBitmap(rotated, pxW, pxH);
+                bmp = CreateFrozenBitmap(rotated, pxW, pxH, ThumbnailLogicalWidth);
             }
             else
             {
@@ -499,6 +505,12 @@ public sealed class PdfRenderService : IDisposable
             }
             if (bmp == null)
                 return null;
+
+            // 墨迹复合管线（RenderTargetBitmap）输出固定 96 DPI：同样按逻辑宽度重烘焙，
+            // 否则带墨迹的缩略图在高 DPI 屏上仍会被槽位裁掉。
+            if (bmp is BitmapSource source
+                && Math.Abs(source.DpiX - 96.0 * source.PixelWidth / ThumbnailLogicalWidth) > 0.01)
+                bmp = RebakeDpi(source, ThumbnailLogicalWidth);
 
             // 版本门槛 + 写缓存与 InvalidateThumbnailInk 同序嵌套（queueLock→cacheLock）：
             // 渲染期间该页墨迹已变更 → 结果过期，不入缓存、不回填。
@@ -616,14 +628,16 @@ public sealed class PdfRenderService : IDisposable
     /// 旧实现走 GDI+ 编码 PNG 再 BitmapFrame 解码：一张缩略图 = 一次压缩 + 一次解压，
     /// 快速滚动/多页刷新时是缩略图管线的主要 CPU 开销（每张约 5~15ms）。
     /// 缩略图面板只缓存 96 张，直接保留位图的内存增量约 20~30MB（可接受），
-    /// 换来 CPU 开销从"编解码"降到"一次像素拷贝"。</summary>
-    private static BitmapSource? CreateFrozenBitmap(byte[] bgra, int width, int height)
+    /// 换来 CPU 开销从"编解码"降到"一次像素拷贝"。
+    /// logicalWidth &gt; 0 时按"栅格化像素宽 / 逻辑宽"烘焙 DPI（见 ThumbnailLogicalWidth）。</summary>
+    private static BitmapSource? CreateFrozenBitmap(byte[] bgra, int width, int height, int logicalWidth = 0)
     {
         try
         {
             if (width <= 0 || height <= 0 || bgra.Length < checked(width * 4 * height))
                 return null;
-            var bmp = BitmapSource.Create(width, height, 96, 96, PixelFormats.Bgra32, null, bgra, width * 4);
+            double dpi = logicalWidth > 0 ? 96.0 * width / logicalWidth : 96.0;
+            var bmp = BitmapSource.Create(width, height, dpi, dpi, PixelFormats.Bgra32, null, bgra, width * 4);
             bmp.Freeze();
             return bmp;
         }
@@ -631,6 +645,29 @@ public sealed class PdfRenderService : IDisposable
         {
             App.Log("CreateFrozenBitmap", ex);
             return null;
+        }
+    }
+
+    /// <summary>把位图的 DPI 元数据重烘焙为"像素宽 / 逻辑宽"，像素内容不变（拷一次，
+    /// 缩略图尺寸下开销可忽略）。DPI 正确后 Image(Stretch=None) 的天然尺寸 = 槽位 DIP。</summary>
+    private static BitmapSource RebakeDpi(BitmapSource src, int logicalWidth)
+    {
+        try
+        {
+            if (src.Format != PixelFormats.Bgra32 && src.Format != PixelFormats.Pbgra32)
+                return src;   // 只处理缩略图管线的 32bpp 输出
+            double dpi = 96.0 * src.PixelWidth / Math.Max(1, logicalWidth);
+            int stride = src.PixelWidth * 4;
+            var pixels = GC.AllocateUninitializedArray<byte>(checked(stride * src.PixelHeight));
+            src.CopyPixels(pixels, stride, 0);
+            var bmp = BitmapSource.Create(src.PixelWidth, src.PixelHeight, dpi, dpi, src.Format, null, pixels, stride);
+            bmp.Freeze();
+            return bmp;
+        }
+        catch (Exception ex)
+        {
+            App.Log("RebakeDpi", ex);
+            return src;
         }
     }
 
