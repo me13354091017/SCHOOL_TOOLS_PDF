@@ -35,6 +35,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create v0.1.11 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" `
-            --title "v0.1.11 缩略图显示不全修复" `
-            --notes "修复页面缩略图侧栏在高 DPI 屏幕上显示不全（缩略图被裁掉一部分）的问题：缩略图位图按屏幕缩放系数提高渲染分辨率，但位图的 DPI 元数据固定在 96，按原始尺寸绘制时天然尺寸大出缩放比例、超出槽位的部分被裁掉。现在按槽位逻辑宽度烘焙正确的 DPI 元数据，150%/200% 缩放屏上缩略图完整显示且更清晰。"
+          gh release create v0.1.12 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" `
+            --title "v0.1.12 保存时文案修正" `
+            --notes "修复保存批注到原 PDF 时界面文案错误：保存复用打开文档的全屏加载页，文案与标题栏都显示“正在打开”。现在保存全程改为“正在保存”，结束后恢复正常标题；保存失败也不会残留错误文案。"
