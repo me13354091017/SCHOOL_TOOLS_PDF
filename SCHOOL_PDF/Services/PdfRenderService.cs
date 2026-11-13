@@ -1,5 +1,4 @@
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Windows.Ink;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -16,7 +15,7 @@ public sealed record PdfInkOverlay(int PageIndex, int Width, int Height, byte[] 
 public sealed record ThumbnailInk(Stroke[] Strokes, double CoordW, double CoordH);
 
 /// <summary>基于直接 PDFium 的位图渲染服务（引擎抄自 KillerPDF：PdfiumInterop 栅格化 +
-/// 后台线程 BitmapSource.Create+Freeze 烘焙 DPI；缩略图走 PdfiumInterop 渲染 + PNG→冻结 BitmapFrame）。
+/// 后台线程 BitmapSource.Create+Freeze 烘焙 DPI；缩略图走 PdfiumInterop 渲染 + 冻结位图）。
 /// 位图按"烘焙 DPI"固定到 DIP 显示尺寸，多余像素用于缩放清晰度。
 /// 内存策略（借鉴 KillerPDF）：hi-res（随缩放）不入缓存，只存活于可见页；base（≤2048 宽）进 LRU 供回扫/缩小。
 /// 页面位图与缩略图均为后台线程创建的冻结位图（RenderPageAsync / RenderThumbnailAsync），
@@ -44,6 +43,8 @@ public sealed class PdfRenderService : IDisposable
     private long _baseCacheBytes;   // base 缓存位图像素字节合计（_baseCacheLock 保护）
     private readonly Dictionary<long, ImageSource> _thumbCache = new();
     private readonly List<long> _thumbLruOrder = new();
+    private readonly object _pageSizeLock = new();
+    private readonly Dictionary<int, (double W, double H)> _pageSizeCache = new(); // 页原生尺寸缓存（省重复 LoadPage）
     private readonly object _thumbCacheLock = new();          // 后台缩略图渲染与 UI 清理共用
     private readonly object _baseCacheLock = new();           // base 缓存改由后台线程渲染，读/写/LRU 全部加锁
     private readonly SemaphoreSlim _pageRenderSem = new(2, 2); // 页面渲染并发上限（限制 90MB 级位图的并发内存峰值）
@@ -166,8 +167,17 @@ public sealed class PdfRenderService : IDisposable
             if (savedPageCount != expectedPageCount)
                 throw new InvalidOperationException("保存结果页数校验失败，原文件未更改。");
 
-            for (int pageIndex = 0; pageIndex < savedPageCount; pageIndex++)
+            // 逐页试渲染是 O(页数) 的额外开销（每页都要 LoadPage + 解析内容流 + 栅格化），
+            // 几百页的教材保存时白等数秒。页数已由 FPDF_GetPageCount 完整校验，
+            // 这里只对首/中/末抽样试渲染（≤3 页，常数成本），足以发现保存结果结构损坏。
+            int probeCount = Math.Min(savedPageCount, 3);
+            for (int probe = 0; probe < probeCount; probe++)
             {
+                int pageIndex = probe == 0
+                    ? 0
+                    : probe == probeCount - 1
+                        ? savedPageCount - 1
+                        : savedPageCount / 2;
                 var (width, height) = PdfiumInterop.GetPageSize(verificationDocument, pageIndex);
                 if (width <= 0 || height <= 0
                     || PdfiumInterop.FPDF_RenderPage(verificationDocument, pageIndex, 32, 32) == null)
@@ -223,13 +233,31 @@ public sealed class PdfRenderService : IDisposable
             var doc = _doc;
             if (doc == IntPtr.Zero)
                 throw new InvalidOperationException("文档未打开");
-            var (w, h) = PdfiumInterop.GetPageSize(doc, pageIndex);
+            var (w, h) = GetPageSizeCachedLocked(doc, pageIndex);
             if (w <= 0 || h <= 0)
                 return new PageSize(Math.Max(1, targetWidth), Math.Max(1, targetWidth));
             int renderWidth = Math.Max(1, targetWidth);
             int renderHeight = Math.Max(1, (int)Math.Round(h / w * renderWidth));
             return new PageSize(renderWidth, renderHeight);
         }
+    }
+
+    /// <summary>页原生尺寸（pt）带缓存：打开文档逐页取尺寸、随后缩略图逐张渲染时都要 LoadPage，
+    /// 缓存后同一页只解析一次（每页密度高的文档省上百次 LoadPage/ClosePage）。调用方须持 PdfiumLock。</summary>
+    private (double W, double H) GetPageSizeCachedLocked(IntPtr doc, int pageIndex)
+    {
+        lock (_pageSizeLock)
+        {
+            if (_pageSizeCache.TryGetValue(pageIndex, out var cached))
+                return cached;
+        }
+        var size = PdfiumInterop.GetPageSize(doc, pageIndex);
+        if (size.W > 0 && size.H > 0)
+        {
+            lock (_pageSizeLock)
+                _pageSizeCache[pageIndex] = size;
+        }
+        return size;
     }
 
     /// <summary>渲染某一页的 hi-res 位图（分辨率随缩放，最高 4096 宽）。不入缓存——
@@ -273,9 +301,11 @@ public sealed class PdfRenderService : IDisposable
     /// 已作废的请求就直接返回，不再白渲染一整页 ≈20MB。</summary>
     public Task<ImageSource> RenderPageAsync(int pageIndex, int renderWidth, int baseWidth, int baseHeight,
         int rotation, CancellationToken token = default)
-        => Task.Run(() =>
+        => Task.Run(async () =>
         {
-            _pageRenderSem.Wait(token);
+            // 异步排队：名额被占满时不阻塞线程池线程（原来 Wait 会占住 worker 线程，
+            // 与缩略图 worker 抢 2 核机器的线程，滚动时会拖慢 UI 回调）。
+            await _pageRenderSem.WaitAsync(token).ConfigureAwait(false);
             try
             {
                 token.ThrowIfCancellationRequested();
@@ -287,9 +317,9 @@ public sealed class PdfRenderService : IDisposable
     /// <summary>后台取某一页的 base 位图（语义同 <see cref="RenderPageBase"/>，LRU 缓存线程安全；取消语义同 hi 路径）。</summary>
     public Task<ImageSource> RenderPageBaseAsync(int pageIndex, int renderWidth, int baseWidth, int baseHeight,
         int rotation, CancellationToken token = default)
-        => Task.Run(() =>
+        => Task.Run(async () =>
         {
-            _pageRenderSem.Wait(token);
+            await _pageRenderSem.WaitAsync(token).ConfigureAwait(false);
             try
             {
                 token.ThrowIfCancellationRequested();
@@ -301,8 +331,7 @@ public sealed class PdfRenderService : IDisposable
     /// <summary>后台渲染某一页的缩略图位图（并发上限 2，由 worker 环保证；PdfiumLock 保证与页面渲染互斥）。
     /// 请求进入优先级队列：可见区（当前滑动区域）优先，缓冲区按到可见区距离由近及远；
     /// 同页同旋转角在途请求去重。rotation = 顺时针旋转角，thumbWidth = 旋转后的显示宽。
-    /// 完成后由调用方 Dispatcher 更新 UI。缩略图走 PNG→冻结 BitmapFrame（KillerPDF 缩略图引擎），
-    /// 后台线程安全。</summary>
+    /// 完成后由调用方 Dispatcher 更新 UI。缩略图直接出冻结位图（跳过 PNG 编解码），后台线程安全。</summary>
     public Task<ImageSource?> RenderThumbnailAsync(int pageIndex, int thumbWidth, int rotation)
     {
         long key = CacheKey(pageIndex, rotation);
@@ -437,7 +466,7 @@ public sealed class PdfRenderService : IDisposable
                 var doc = _doc;
                 if (doc == IntPtr.Zero)
                     return null;
-                var (w, h) = PdfiumInterop.GetPageSize(doc, pageIndex);
+                var (w, h) = GetPageSizeCachedLocked(doc, pageIndex);
                 if (w <= 0 || h <= 0)
                     return null;
                 bool swap = rotation is 90 or 270;
@@ -455,14 +484,14 @@ public sealed class PdfRenderService : IDisposable
             ImageSource? bmp;
             if (ink == null)
             {
-                // 无墨迹：保持原路径（像素旋转 → PNG 编码），零额外开销
+                // 无墨迹：保持原路径（像素旋转 → 冻结位图），不做 PNG 编解码
                 var (rotated, pxW, pxH) = BitmapHelpers.RotateBitmap(raw, contentPxW, contentPxH, rotation);
-                bmp = EncodeThumbnail(rotated, pxW, pxH);
+                bmp = CreateFrozenBitmap(rotated, pxW, pxH);
             }
             else
             {
-                // 有墨迹：先编码未旋转位图，再走页面墨迹复合管线（内部缩放墨迹 + 旋转输出）
-                var unrotated = EncodeThumbnail(raw, contentPxW, contentPxH);
+                // 有墨迹：先出未旋转位图，再走页面墨迹复合管线（内部缩放墨迹 + 旋转输出）
+                var unrotated = CreateFrozenBitmap(raw, contentPxW, contentPxH);
                 if (unrotated == null)
                     return null;
                 bmp = InkCompositionService.CompositePageWithInk(unrotated, ink.Strokes,
@@ -583,32 +612,25 @@ public sealed class PdfRenderService : IDisposable
         }
     }
 
-    /// <summary>BGRA 像素 → PNG → 冻结 BitmapFrame（抄自 KillerPDF PageThumbnailVm.EncodeToBitmapSource）。
-    /// GDI+ Format32bppArgb 内存序即 BGRA，与 pdfium 输出一致。</summary>
-    private static BitmapSource? EncodeThumbnail(byte[] bgra, int width, int height)
+    /// <summary>BGRA 像素 → 冻结 BitmapSource（后台线程安全）。
+    /// 旧实现走 GDI+ 编码 PNG 再 BitmapFrame 解码：一张缩略图 = 一次压缩 + 一次解压，
+    /// 快速滚动/多页刷新时是缩略图管线的主要 CPU 开销（每张约 5~15ms）。
+    /// 缩略图面板只缓存 96 张，直接保留位图的内存增量约 20~30MB（可接受），
+    /// 换来 CPU 开销从"编解码"降到"一次像素拷贝"。</summary>
+    private static BitmapSource? CreateFrozenBitmap(byte[] bgra, int width, int height)
     {
-        var pin = GCHandle.Alloc(bgra, GCHandleType.Pinned);
         try
         {
-            using var bmp = new System.Drawing.Bitmap(
-                width, height, width * 4,
-                System.Drawing.Imaging.PixelFormat.Format32bppArgb,
-                pin.AddrOfPinnedObject());
-            using var ms = new MemoryStream();
-            bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-            ms.Position = 0;
-            var src = BitmapFrame.Create(ms, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
-            src.Freeze();
-            return src;
+            if (width <= 0 || height <= 0 || bgra.Length < checked(width * 4 * height))
+                return null;
+            var bmp = BitmapSource.Create(width, height, 96, 96, PixelFormats.Bgra32, null, bgra, width * 4);
+            bmp.Freeze();
+            return bmp;
         }
         catch (Exception ex)
         {
-            App.Log("EncodeThumbnail", ex);
+            App.Log("CreateFrozenBitmap", ex);
             return null;
-        }
-        finally
-        {
-            pin.Free();
         }
     }
 
@@ -721,6 +743,8 @@ public sealed class PdfRenderService : IDisposable
     public void CloseDocument()
     {
         ClearCache();
+        lock (_pageSizeLock)
+            _pageSizeCache.Clear();   // 页尺寸与文档绑定，换文档必须失效
         // 丢弃排队中的缩略图请求（换文档后旧请求不得混入），worker 无需停止：空队列时挂起。
         lock (_thumbQueueLock)
         {
