@@ -1,6 +1,7 @@
 name: Build and Release
 
 # 只在 workflow 自身变更时触发（日常提交不打包）；也支持在 Actions 页面手动 Run workflow。
+# v0.1.12：修正 csproj 的 LICENSE 资源路径后重新触发打包。
 on:
   push:
     branches: [main]
