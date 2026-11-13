@@ -1,7 +1,6 @@
 name: Build and Release
 
 # 只在 workflow 自身变更时触发（日常提交不打包）；也支持在 Actions 页面手动 Run workflow。
-# v0.1.12：修正 csproj 的 LICENSE 资源路径后重新触发打包。
 on:
   push:
     branches: [main]
@@ -36,6 +35,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create v0.1.12 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" `
-            --title "v0.1.12 保存时文案修正" `
-            --notes "修复保存批注到原 PDF 时界面文案错误：保存复用打开文档的全屏加载页，文案与标题栏都显示“正在打开”。现在保存全程改为“正在保存”，结束后恢复正常标题；保存失败也不会残留错误文案。"
+          gh release create v0.1.13 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" `
+            --title "v0.1.13 书写失效自愈" `
+            --notes "修复双指手势后页面写不出墨迹：手势开始时临时关闭了笔画收集，一旦抬指事件丢失（切走窗口、系统取消触摸、同一设备重复落笔），恢复会被永久阻塞，页面就停在只显示光标却不落墨的状态。现在在新手指落下、触控笔落下和窗口失焦三个时机自动检测并恢复，并重建被摘掉的笔画编辑模式绑定。另含上一版的保存文案修正。"
