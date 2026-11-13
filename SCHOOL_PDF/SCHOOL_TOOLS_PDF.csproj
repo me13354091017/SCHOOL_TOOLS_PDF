@@ -17,10 +17,10 @@
   <Product>SCHOOL_TOOLS_PDF</Product>
   <Authors>周之尧</Authors>
   <Company>SCHOOL Tools</Company>
-  <AssemblyVersion>0.1.9.0</AssemblyVersion>
-  <FileVersion>0.1.9.0</FileVersion>
-  <InformationalVersion>0.1.9</InformationalVersion>
-	<ApplicationIcon>Resources\app.ico</ApplicationIcon>
+  <AssemblyVersion>0.1.10.0</AssemblyVersion>
+  <FileVersion>0.1.10.0</FileVersion>
+  <InformationalVersion>0.1.10</InformationalVersion>
+	<ApplicationIcon>Resources\\app.ico</ApplicationIcon>
 	</PropertyGroup>
   <ItemGroup>
     <Using Remove="System.Windows.Forms" />
@@ -39,19 +39,19 @@
 
   <ItemGroup>
     <!-- 墨迹工具栏资源（抄 Ink-Canvas：图标字体 + 激活态勾选背景/勾标） -->
-    <Resource Include="Resources\Segoe Fluent Icons.ttf" />
-    <Resource Include="Resources\Icons-png\check-box-background.png" />
-    <Resource Include="Resources\Icons-png\checked-white.png" />
-    <Resource Include="Resources\Icons-png\checked-black.png" />
-    <Resource Include="Resources\dependencies.g.json" />
+    <Resource Include="Resources\\Segoe Fluent Icons.ttf" />
+    <Resource Include="Resources\\Icons-png\\check-box-background.png" />
+    <Resource Include="Resources\\Icons-png\\checked-white.png" />
+    <Resource Include="Resources\\Icons-png\\checked-black.png" />
+    <Resource Include="Resources\\dependencies.g.json" />
     <Resource Include="LICENSE" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- 应用图标（exe=ApplicationIcon；标题栏=Window.Icon 用 ico，多尺寸帧标题栏直接取 16px）
          pdf.ico：文件关联图标（复制到输出目录，供用户手动设置关联时引用） -->
-    <Resource Include="Resources\app.ico" />
-    <Content Include="Resources\pdf.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Resource Include="Resources\\app.ico" />
+    <Content Include="Resources\\pdf.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
