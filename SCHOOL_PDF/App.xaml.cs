@@ -1,6 +1,8 @@
 using System.IO;
 using System.Text;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Threading;
 using SchoolPdf.Services;
 using iNKORE.UI.WPF.Modern;
@@ -26,6 +28,9 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // 触摸屏：设置界面里的滚动容器开启手指平移（WPF 默认只能拖滚动条）。
+        RegisterSettingsTouchPanning();
 
         // 挂接父控制台：诊断 Console.WriteLine 在终端启动/调试时可见（WinExe 默认无控制台；
         // 双击启动无父控制台时静默失败，不产生窗口）。error.log 只存错误，诊断不进 log。
@@ -98,6 +103,42 @@ public partial class App : Application
         //ErrorWindow.ShowError("调试示例",
         //    new InvalidOperationException("这是启动时弹出的示例错误窗口（仅 DEBUG 编译生效）。"));
 #endif
+    }
+
+    /// <summary>设置界面触摸滚动修复：WPF ScrollViewer 的 PanningMode 默认是 None，手指按住拖动
+    /// 不会被当成滚动，触摸屏上只能去拖细滚动条（鼠标滚轮另有一套 PreviewMouseWheel 处理）。
+    /// 这里在类级别挂 ScrollViewer 的 Loaded，给设置覆盖层及其弹窗内、且**没有显式设置**过
+    /// PanningMode 的滚动容器开启垂直平移。
+    /// 不显式设置的一律跳过：PDF 阅读区 PagesScrollViewer 在 XAML 里写死 None（单指平移由
+    /// MainWindow 的自定义手势接管，开 panning 会抢书写手势），不能被这里误改。</summary>
+    private static void RegisterSettingsTouchPanning()
+    {
+        EventManager.RegisterClassHandler(typeof(ScrollViewer), FrameworkElement.LoadedEvent,
+            new RoutedEventHandler((sender, _) =>
+            {
+                if (sender is not ScrollViewer scrollViewer)
+                    return;
+                // ReadLocalValue 为 UnsetValue = 没在任何地方显式赋值（XAML 里写 None 也算显式）
+                if (scrollViewer.ReadLocalValue(ScrollViewer.PanningModeProperty) != DependencyProperty.UnsetValue)
+                    return;
+                if (!IsInsideSettingsSurface(scrollViewer))
+                    return;
+                scrollViewer.PanningMode = PanningMode.VerticalOnly;
+            }));
+    }
+
+    /// <summary>是否位于设置界面内（设置覆盖层本体，或它弹出的内容对话框）。</summary>
+    private static bool IsInsideSettingsSurface(DependencyObject? node)
+    {
+        while (node is not null)
+        {
+            if (node is SchoolPdf.Controls.SettingsView || node is iNKORE.UI.WPF.Modern.Controls.ContentDialog)
+                return true;
+            DependencyObject? parent = node is Visual ? VisualTreeHelper.GetParent(node) : null;
+            parent ??= LogicalTreeHelper.GetParent(node);
+            node = parent;
+        }
+        return false;
     }
 
     /// <summary>追加一行日志到用户数据目录下的错误日志文件。</summary>
