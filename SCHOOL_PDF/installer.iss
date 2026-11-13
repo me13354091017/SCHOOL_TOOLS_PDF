@@ -46,8 +46,17 @@ OutputBaseFilename=SCHOOL_TOOLS_PDF_{#Arch}_setup
 SolidCompression=yes
 WizardStyle=modern dynamic windows11
 
+#ifndef UseEnglishOnly
+  ; 本地编译默认中文向导（需要 Inno 自带语言包）；CI 未装语言包时传 /DUseEnglishOnly=1 走英文向导
+  #define UseEnglishOnly 0
+#endif
+
 [Languages]
+#if UseEnglishOnly
+Name: "english"; MessagesFile: "compiler:Default.isl"
+#else
 Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
+#endif
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
