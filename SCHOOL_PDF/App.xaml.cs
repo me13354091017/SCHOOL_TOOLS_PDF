@@ -32,6 +32,10 @@ public partial class App : Application
         // 触摸屏：设置界面里的滚动容器开启手指平移（WPF 默认只能拖滚动条）。
         RegisterSettingsTouchPanning();
 
+        // PDF 页面墨迹自愈：双指手势的抬指事件丢失后 EditingMode 会永久停在 None（光标还在，但笔和手指都写不出墨迹）。
+        // 首次 Activated 时窗口已创建，交给它挂自愈入口。
+        RegisterInkRecoveryOnActivated();
+
         // 挂接父控制台：诊断 Console.WriteLine 在终端启动/调试时可见（WinExe 默认无控制台；
         // 双击启动无父控制台时静默失败，不产生窗口）。error.log 只存错误，诊断不进 log。
         AttachConsole(AttachParentProcess);
@@ -103,6 +107,18 @@ public partial class App : Application
         //ErrorWindow.ShowError("调试示例",
         //    new InvalidOperationException("这是启动时弹出的示例错误窗口（仅 DEBUG 编译生效）。"));
 #endif
+    }
+
+    /// <summary>窗口首次激活时给主窗口挂墨迹自愈入口（StartupUri 在建 OnStartup 之后创建，这里等 Activated）。</summary>
+    private void RegisterInkRecoveryOnActivated()
+    {
+        void OnActivatedOnce(object? sender, EventArgs e)
+        {
+            Activated -= OnActivatedOnce;
+            if (MainWindow is SchoolPdf.MainWindow window)
+                window.EnableInkRecovery();
+        }
+        Activated += OnActivatedOnce;
     }
 
     /// <summary>设置界面触摸滚动修复：WPF ScrollViewer 的 PanningMode 默认是 None，手指按住拖动
