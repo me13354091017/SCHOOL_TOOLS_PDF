@@ -994,6 +994,9 @@
                                 <Run Text="• "/><Run Text=" 基于C# + .NET 10 + WPF开发"/>
                             </TextBlock>
                             <TextBlock FontSize="15" TextWrapping="Wrap" Foreground="{DynamicResource ToolbarForegroundBrush}">
+                                <Run Text="• "/><Run Text=" 制作人：周之尧"/>
+                            </TextBlock>
+                            <TextBlock FontSize="15" TextWrapping="Wrap" Foreground="{DynamicResource ToolbarForegroundBrush}">
                                 <Run Text="• "/><Run Text=" 本应用墨迹书写板块参考了 "/><Hyperlink Tag="https://github.com/InkCanvas/Ink-Canvas-Artistry" Click="AboutHyperlink_Click">Ink-Canvas-Artistry</Hyperlink>
                             </TextBlock>
                             <TextBlock FontSize="15" TextWrapping="Wrap" Foreground="{DynamicResource ToolbarForegroundBrush}">
