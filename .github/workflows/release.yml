@@ -28,7 +28,8 @@ jobs:
         run: choco install innosetup --no-progress -y
 
       - name: Compile installer
-        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DArch=x64 SCHOOL_PDF\installer.iss'
+        # CI 里的 choco 包不带 Languages 语言包，用 /DUseEnglishOnly=1 走英文向导（本地编译仍默认中文）
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DArch=x64 /DUseEnglishOnly=1 SCHOOL_PDF\installer.iss'
 
       - name: Create GitHub Release
         env:
