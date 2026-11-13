@@ -212,6 +212,46 @@ public partial class SettingsView : System.Windows.Controls.UserControl
         ShowSection(item.Tag as string ?? "writing");
     }
 
+    private void SettingsView_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+    {
+        if (e.Delta == 0)
+            return;
+
+        ScrollViewer? scrollViewer = null;
+        FrameworkElement[] sections =
+        [
+            WritingSection, AppearanceSection, PdfBarSection, BoardBarSection,
+            InkRecognitionSection, PalmEraseSection, DataStorageSection, UpdateSection, AboutSection
+        ];
+        foreach (var section in sections)
+        {
+            if (section.Visibility != Visibility.Visible)
+                continue;
+            scrollViewer = FindScrollViewer(section);
+            break;
+        }
+
+        if (scrollViewer is null || scrollViewer.ScrollableHeight <= 0)
+            return;
+
+        scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset - e.Delta * 0.4);
+        e.Handled = true;
+    }
+
+    private static ScrollViewer? FindScrollViewer(DependencyObject parent)
+    {
+        if (parent is ScrollViewer scrollViewer)
+            return scrollViewer;
+
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var found = FindScrollViewer(VisualTreeHelper.GetChild(parent, i));
+            if (found is not null)
+                return found;
+        }
+        return null;
+    }
+
     /// <summary>依导航选择切换右侧设置区（writing=墨迹书写，appearance=应用主题，pdfbar=PDF阅读，boardbar=画板书写，inkrecog=墨迹识别，about=关于应用）。</summary>
     private void ShowSection(string tag)
     {
