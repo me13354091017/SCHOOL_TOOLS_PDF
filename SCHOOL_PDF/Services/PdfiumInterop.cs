@@ -98,6 +98,10 @@ internal static class PdfiumInterop
             if (document == IntPtr.Zero || width <= 0 || height <= 0 || pixels.Length < checked(width * height * 4))
                 throw new ArgumentException("批注图像尺寸或数据无效。", nameof(pixels));
 
+            // 上游是 WPF 的预乘 alpha 像素（Pbgra32），PDF 图像要的是直通 alpha。直接写入时
+            // 半透明像素的通道值比实际偏小，落到页面上就是笔画边缘发黑、整片墨迹偏暗发虚。
+            pixels = Unpremultiply(pixels);
+
             IntPtr page = FPDF_LoadPageRaw(document, pageIndex);
             if (page == IntPtr.Zero)
                 throw new InvalidOperationException($"无法打开 PDF 第 {pageIndex + 1} 页以写入批注。");
@@ -146,6 +150,31 @@ internal static class PdfiumInterop
                 FPDF_ClosePageRaw(page);
             }
         }
+    }
+
+    /// <summary>预乘 alpha（Pbgra32）→ 直通 alpha（BGRA）：c = c*255/a，a=0 时三通道归零。</summary>
+    private static byte[] Unpremultiply(byte[] pixels)
+    {
+        var result = new byte[pixels.Length];
+        Buffer.BlockCopy(pixels, 0, result, 0, pixels.Length);
+        for (int i = 0; i + 3 < result.Length; i += 4)
+        {
+            int a = result[i + 3];
+            if (a == 255)
+                continue;
+            if (a == 0)
+            {
+                result[i] = 0;
+                result[i + 1] = 0;
+                result[i + 2] = 0;
+                continue;
+            }
+            int rounding = a >> 1;
+            result[i] = (byte)Math.Min(255, (result[i] * 255 + rounding) / a);
+            result[i + 1] = (byte)Math.Min(255, (result[i + 1] * 255 + rounding) / a);
+            result[i + 2] = (byte)Math.Min(255, (result[i + 2] * 255 + rounding) / a);
+        }
+        return result;
     }
 
     internal static bool SaveAsCopy(IntPtr document, Stream output)
