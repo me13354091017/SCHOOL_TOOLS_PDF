@@ -4,7 +4,7 @@
 #endif
 
 #define MyAppName "SCHOOL_TOOLS_PDF"
-#define MyAppVersion "0.1.13"
+#define MyAppVersion "0.1.14"
 #define MyAppPublisher "SCHOOL Tools"
 #define MyAppURL "https://github.com/me13354091017/SCHOOL_TOOLS_PDF"
 #define MyAppExeName "SCHOOL_TOOLS_PDF.exe"
@@ -102,7 +102,7 @@ procedure SHChangeNotify(wEventId: Cardinal; uFlags: Cardinal;
   dwItem1: Cardinal; dwItem2: Cardinal);
   external 'SHChangeNotify@shell32.dll stdcall';
 
-{ 启动：解析 restart 参数 → 检测已安装 → 抢互斥体防多开。
+{ 启动：解析 restart 参数 → 检测已安装 → 捡互斥体防多开。
   已安装时由 ShouldSkipPage 跳过全部向导页直达安装、装完自动退出（单进程，不换子实例）。 }
 function InitializeSetup(): Boolean;
 var
