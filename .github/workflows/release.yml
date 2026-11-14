@@ -35,6 +35,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create v0.1.13 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" `
-            --title "v0.1.13 书写失效自愈" `
-            --notes "修复双指手势后页面写不出墨迹：手势开始时临时关闭了笔画收集，一旦抬指事件丢失（切走窗口、系统取消触摸、同一设备重复落笔），恢复会被永久阻塞，页面就停在只显示光标却不落墨的状态。现在在新手指落下、触控笔落下和窗口失焦三个时机自动检测并恢复，并重建被摘掉的笔画编辑模式绑定。另含上一版的保存文案修正。"
+          gh release create v0.1.14 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" `
+            --title "v0.1.14 墨迹保存显示修复" `
+            --notes "修复保存批注后墨迹变暗、变模糊：墨迹层原先按 WPF 的预乘 alpha 写进 PDF，半透明像素的通道值偏小，落到页面上就是笔画边缘发黑、整片墨迹偏暗发虚；现在写入前先还原成直通 alpha。另外墨迹库按 PDF 文件内容哈希定位，保存后文件一变就自动换新库，旧墨迹不会和已写进 PDF 的墨迹重复叠加。"
