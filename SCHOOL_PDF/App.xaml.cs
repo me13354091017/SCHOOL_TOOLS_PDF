@@ -36,6 +36,10 @@ public partial class App : Application
         // 首次 Activated 时窗口已创建，交给它挂自愈入口。
         RegisterInkRecoveryOnActivated();
 
+        // 设置界面「墨迹保存清晰度上限」滑条：SettingsView.xaml 过大（80KB+），改由代码在
+        // 「墨迹书写」页末尾追加一张 SettingsCard（2~15 倍，值写回 Settings.json）。
+        RegisterInkQualityCard();
+
         // 挂接父控制台：诊断 Console.WriteLine 在终端启动/调试时可见（WinExe 默认无控制台；
         // 双击启动无父控制台时静默失败，不产生窗口）。error.log 只存错误，诊断不进 log。
         AttachConsole(AttachParentProcess);
@@ -119,6 +123,120 @@ public partial class App : Application
                 window.EnableInkRecovery();
         }
         Activated += OnActivatedOnce;
+    }
+
+    /// <summary>设置界面追加「墨迹保存清晰度上限」滑条（见 <see cref="AttachInkQualityCard"/>）。</summary>
+    private void RegisterInkQualityCard()
+    {
+        void OnActivated(object? sender, EventArgs e)
+        {
+            // 窗口首帧渲染后才注入：SettingsView 的 ScrollViewer 内容面板此时才建好。
+            Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () =>
+            {
+                if (MainWindow is SchoolPdf.MainWindow window && AttachInkQualityCard(window))
+                    Activated -= OnActivated;
+            });
+        }
+        Activated += OnActivated;
+    }
+
+    private static bool _inkQualityCardAttached;
+
+    /// <summary>往「墨迹书写」设置页末尾追加一张清晰度滑条卡片（2~15 倍）。
+    /// 返回 true 表示已处理（无论注入成功或已注入过），调用方据此摘掉 Activated 钩子。</summary>
+    private static bool AttachInkQualityCard(DependencyObject root)
+    {
+        if (_inkQualityCardAttached)
+            return true;
+        var view = FindDescendant<SchoolPdf.Controls.SettingsView>(root);
+        var section = view?.FindName("WritingSection") as DependencyObject;
+        var panel = section == null ? null : FindCardsPanel(section);
+        if (panel == null)
+            return false;   // 可视化树尚未建好，下次 Activated 再试
+
+        var card = new iNKORE.UI.WPF.Modern.Controls.SettingsCard
+        {
+            Header = "墨迹保存清晰度上限",
+            Description = "保存批注时墨迹按页面实际像素自适应生成，这里设上限：越大越清晰，内存和 PDF 体积同步增加。"
+        };
+        var slider = new Slider
+        {
+            Minimum = 2,
+            Maximum = 15,
+            TickFrequency = 1,
+            IsSnapToTickEnabled = true,
+            Width = 220,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        var valueText = new TextBlock
+        {
+            Margin = new Thickness(12, 0, 0, 0),
+            MinWidth = 100,
+            TextAlignment = TextAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        double initial = SettingsService.Load().InkExportQualityScale;
+        if (initial < 2 || initial > 15)
+            initial = 3;
+        slider.Value = initial;
+        SetInkQualityText(valueText, initial);
+        slider.ValueChanged += (_, args) =>
+        {
+            double value = Math.Clamp(args.NewValue, 2, 15);
+            SetInkQualityText(valueText, value);
+            try
+            {
+                var settings = SettingsService.Load();
+                settings.InkExportQualityScale = value;
+                SettingsService.Save(settings);
+            }
+            catch (Exception ex)
+            {
+                Log("墨迹清晰度设置", ex);
+            }
+        };
+
+        var content = new StackPanel { Orientation = Orientation.Horizontal };
+        content.Children.Add(slider);
+        content.Children.Add(valueText);
+        card.Content = content;
+        panel.Children.Add(card);
+        _inkQualityCardAttached = true;
+        return true;
+    }
+
+    private static void SetInkQualityText(TextBlock text, double scale)
+        => text.Text = $"×{scale:0.#}（约 {scale * 96:0}dpi）";
+
+    /// <summary>在设置页里找到承载 SettingsCard 的内容面板（ScrollViewer 的 Content 即卡片容器）。</summary>
+    private static Panel? FindCardsPanel(DependencyObject node)
+    {
+        if (node is ScrollViewer { Content: Panel panel })
+            return panel;
+        int count = VisualTreeHelper.GetChildrenCount(node);
+        for (int i = 0; i < count; i++)
+        {
+            Panel? found = FindCardsPanel(VisualTreeHelper.GetChild(node, i));
+            if (found != null)
+                return found;
+        }
+        return null;
+    }
+
+    private static T? FindDescendant<T>(DependencyObject node) where T : DependencyObject
+    {
+        int count = VisualTreeHelper.GetChildrenCount(node);
+        for (int i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(node, i);
+            if (child is T match)
+                return match;
+            T? nested = FindDescendant<T>(child);
+            if (nested != null)
+                return nested;
+        }
+        return null;
     }
 
     /// <summary>设置界面触摸滚动修复：WPF ScrollViewer 的 PanningMode 默认是 None，手指按住拖动
