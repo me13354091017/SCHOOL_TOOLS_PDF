@@ -178,7 +178,7 @@ public partial class App : Application
 
         double initial = SettingsService.Load().InkExportQualityScale;
         if (initial < 2 || initial > 15)
-            initial = 3;
+            initial = 4;
         slider.Value = initial;
         SetInkQualityText(valueText, initial);
         slider.ValueChanged += (_, args) =>
