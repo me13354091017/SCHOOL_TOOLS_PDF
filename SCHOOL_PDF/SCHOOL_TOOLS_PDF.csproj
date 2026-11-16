@@ -48,7 +48,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- 应用图标（exe=ApplicationIcon；标题栗=Window.Icon 用 ico，多尺寸帧标题栗直接取 16px）
+    <!-- 应用图标（exe=ApplicationIcon；标题栏=Window.Icon 用 ico，多尺寸帧标题栏直接取 16px）
          pdf.ico：文件关联图标（复制到输出目录，供用户手动设置关联时引用） -->
     <Resource Include="Resources\app.ico" />
     <Content Include="Resources\pdf.ico" CopyToOutputDirectory="PreserveNewest" />
