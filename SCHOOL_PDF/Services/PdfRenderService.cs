@@ -16,7 +16,7 @@ public sealed record ThumbnailInk(Stroke[] Strokes, double CoordW, double CoordH
 
 /// <summary>基于直接 PDFium 的位图渲染服务（引擎抄自 KillerPDF：PdfiumInterop 栅格化 +
 /// 后台线程 BitmapSource.Create+Freeze 烘焙 DPI；缩略图走 PdfiumInterop 渲染 + 冻结位图）。
-/// 位图按“烘焙 DPI”固定到 DIP 显示尺寸，多余像素用于缩放清晰度。
+/// 位图按"烘焙 DPI"固定到 DIP 显示尺寸，多余像素用于缩放清晰度。
 /// 内存策略（借鉴 KillerPDF）：hi-res（随缩放）不入缓存，只存活于可见页；base（≤2048 宽）进 LRU 供回扫/缩小。
 /// 页面位图与缩略图均为后台线程创建的冻结位图（RenderPageAsync / RenderThumbnailAsync），
 /// UI 线程只做赋值——高负载书写时页面渲染不占用 UI 帧。</summary>
@@ -32,11 +32,11 @@ public sealed class PdfRenderService : IDisposable
     /// <summary>缩略图的逻辑显示宽度（DIP）：与 MainViewModel.ThumbnailWidth 保持一致。
     /// 渲染时会按 DPI 缩放放大像素（140 DIP 在 150% 屏上是 210px），位图的 DPI 元数据必须
     /// 按这个逻辑宽度烘焙——否则 Image(Stretch=None) 会按像素当 DIP 绘制，天然尺寸大出
-    /// 1.5 倍，超出槽位的部分直接被裁掉（缩略图“显示不全”）。</summary>
+    /// 1.5 倍，超出槽位的部分直接被裁掉（缩略图"显示不全"）。</summary>
     private const int ThumbnailLogicalWidth = 140;
 
     /// <summary>base 渲染缓存字节上限（对齐 KillerPDF 每标签 160MB）：页尺寸大或高 DPI 时，
-    /// 仅靠 8 页的页数上限不控总量，叠加字节预算后按“距离刚渲染页最远”淘汰。</summary>
+    /// 仅靠 8 页的页数上限不控总量，叠加字节预算后按"距离刚渲染页最远"淘汰。</summary>
     private const long MaxCachedBaseBytes = 160L << 20;
 
     private IntPtr _doc;   // FPDF 文档句柄：OpenDocument 打开，服务生命周期内复用；所有访问持 PdfiumLock
@@ -106,7 +106,7 @@ public sealed class PdfRenderService : IDisposable
             throw new InvalidOperationException($"第 {page.PageIndex + 1} 页尚无有效的墨迹坐标区域。");
         double pixelLimitScale = Math.Sqrt(16_777_216.0 / (coordinateWidth * coordinateHeight));
 
-        // 墨迹层是位图：分辨率必须不低于“页面当前被栅格化的像素宽”，否则重载后页面一放大，
+        // 墨迹层是位图：分辨率必须不低于"页面当前被栅格化的像素宽"，否则重载后页面一放大，
         // 墨迹就先糊掉（矢量笔画原本是锐的，对比之下非常明显）。
         // 取当前页面位图宽 ×1.25 的余量，强制下限 2、上限 3（上限再高，每页墨迹层的内存
         // 就会成倍上涨：3 倍时 A4 每页约 18MB）。
@@ -140,7 +140,7 @@ public sealed class PdfRenderService : IDisposable
         string sourcePath = _documentPath ?? throw new InvalidOperationException("没有打开的 PDF 文件。");
         string? password = _documentPassword;
         int expectedPageCount = _pageCount;
-        string tempPath = Path.Combine(Path.GetDirectoryName(sourcePath)!, $."{Path.GetFileName(sourcePath)}.{Guid.NewGuid():N}.tmp");
+        string tempPath = Path.Combine(Path.GetDirectoryName(sourcePath)!, $".{Path.GetFileName(sourcePath)}.{Guid.NewGuid():N}.tmp");
         string backupPath = tempPath + ".bak";
         IntPtr saveDocument = PdfiumInterop.FPDF_LoadDocument(sourcePath, password);
         if (saveDocument == IntPtr.Zero)
