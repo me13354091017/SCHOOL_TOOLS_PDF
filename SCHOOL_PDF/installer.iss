@@ -1,10 +1,10 @@
-﻿#ifndef Arch
+#ifndef Arch
   ; 未指定架构时默认 x64（Inno Setup GUI 直接编译 / 调试用）；x86、arm64 用命令行 /DArch= 覆盖
   #define Arch "x64"
 #endif
 
 #define MyAppName "SCHOOL_TOOLS_PDF"
-#define MyAppVersion "0.1.14"
+#define MyAppVersion "0.1.15"
 #define MyAppPublisher "SCHOOL Tools"
 #define MyAppURL "https://github.com/me13354091017/SCHOOL_TOOLS_PDF"
 #define MyAppExeName "SCHOOL_TOOLS_PDF.exe"
@@ -47,7 +47,7 @@ SolidCompression=yes
 WizardStyle=modern dynamic windows11
 
 #ifndef UseEnglishOnly
-  ; 本地编译默认中文向导（需要 Inno 自带语言包）；CI 未装语言包时传 /DUseEnglishOnly=1 走英文向导
+  ; 本地编译默认中文向号（需要 Inno 自带语言包）；CI 未装语言包时传 /DUseEnglishOnly=1 走英文向导
   #define UseEnglishOnly 0
 #endif
 
@@ -67,7 +67,7 @@ Source: "bin\Release\net10.0-windows10.0.19041.0\win-{#Arch}\publish\*"; DestDir
 Source: "Resources\app.ico"; DestDir: "{app}\Resources"; Flags: ignoreversion
 Source: "Resources\pdf.ico"; DestDir: "{app}\Resources"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
-; 覆盖安装保留 Data：本节不登记 Data，安装期也无任何删除逻辑，同 AppId 升级只覆盖已登记文件
+; 覆盖安装保留 Data：本节不登记 Data，安装期也无任何删除逼辑，同 AppId 升级只覆盖已登记文件
 
 [Registry]
 Root: HKA; Subkey: "Software\Classes\{#MyAppAssocExt}\OpenWithProgids"; ValueType: string; ValueName: "{#MyAppAssocKey}"; ValueData: ""; Flags: uninsdeletevalue
