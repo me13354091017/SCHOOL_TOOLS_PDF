@@ -108,12 +108,20 @@ public sealed class PdfRenderService : IDisposable
 
         // 墨迹层是位图：分辨率必须不低于“页面当前被栅格化的像素宽”，否则重载后页面一放大，
         // 墨迹就先糊掉（矢量笔画原本是锐的，对比之下非常明显）。
-        // 取当前页面位图宽 ×1.25 的余量，强制下限 2、上限 3（上限再高，每页墨迹层的内存
-        // 就会成倍上涨：3 倍时 A4 每页约 18MB）。
+        // 取当前页面位图宽 ×1.25 的余量，下限固定 2 倍；上限读设置（2~15，默认 3），
+        // 再受单页像素上限（约 4096×4096）与 8192 边长裁剪。
         double desiredScale = 2.0;
         if (page.Image is BitmapSource pageBitmap && pageBitmap.PixelWidth > 0 && coordinateWidth > 0)
             desiredScale = Math.Max(2.0, pageBitmap.PixelWidth / coordinateWidth * 1.25);
-        double scale = Math.Min(3.0, Math.Min(desiredScale, Math.Min(pixelLimitScale,
+        double maxScale = 3.0;
+        try
+        {
+            double configured = SettingsService.Load().InkExportQualityScale;
+            if (configured > 0)
+                maxScale = Math.Clamp(configured, 2.0, 15.0);
+        }
+        catch { /* 设置读取失败按默认 3 倍 */ }
+        double scale = Math.Min(maxScale, Math.Min(desiredScale, Math.Min(pixelLimitScale,
             Math.Min(8192.0 / coordinateWidth, 8192.0 / coordinateHeight))));
         int width = Math.Max(1, (int)Math.Ceiling(coordinateWidth * scale));
         int height = Math.Max(1, (int)Math.Ceiling(coordinateHeight * scale));
