@@ -35,6 +35,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create v0.1.14 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" `
-            --title "v0.1.14 墨迹保存显示修复" `
-            --notes "修复保存批注后墨迹变暗、变模糊：墨迹层原先按 WPF 的预乘 alpha 写进 PDF，半透明像素的通道值偏小，落到页面上就是笔画边缘发黑、整片墨迹偏暗发虚；现在写入前先还原成直通 alpha。另外墨迹库按 PDF 文件内容哈希定位，保存后文件一变就自动换新库，旧墨迹不会和已写进 PDF 的墨迹重复叠加。"
+          gh release create v0.1.15 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" `
+            --title "v0.1.15 墨迹清晰度修复" `
+            --notes "提升保存后墨迹的清晰度：墨迹层是栅格图，之前固定按 2 倍 DIP 生成，页面重载后一旦被放大或在高分屏上显示，笔画就先糊掉。现在按页面当前实际渲染像素宽（再留 1.25 倍余量）自适应生成，下限 2 倍、上限 3 倍，A4 页面相当于 170~290dpi。同时保留上一版的颜色修复（预乘 alpha 转直通，解决墨迹发暗）。"
