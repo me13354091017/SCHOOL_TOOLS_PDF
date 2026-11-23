@@ -1,8 +1,66 @@
 # SCHOOL_TOOLS_PDF
 
-本仓库包含一个基于 WPF 的 Windows PDF 阅读与批注应用。
+面向课堂讲授与教学资料批注的 Windows PDF 应用——阅读、手写、标注在同一套工作流里完成，讲解时的圈画、公式推演与图形示意不必再切换到另一款白板工具。
 
-- 新应用源码：[SCHOOL_PDF](SCHOOL_PDF/README.md)
-- 上游基础副本：[InkCanvasForPDF](InkCanvasForPDF/README.md)
+当前版本 **v0.1.18（性能优化）** ｜ Windows 10 19041+ ｜ .NET 10 ｜ WPF + PDFium + WinRT Ink
 
-新应用保留并遵循上游 GPL-3.0 许可。构建要求 Windows 10 19041+ 与 .NET 10 SDK。
+## 功能
+
+### 阅读与导航
+- 打开本地 PDF，页面按原比例渲染，支持自由缩放与连续翻页
+- 侧边缩略图栏快速跳页，缩略图与正文渲染分优先级调度，翻页不等待
+- 可设为系统默认 PDF 应用，双击 PDF 直接进入批注界面
+
+### 书写与批注
+- 手写笔、橡皮、荧光笔三种基础工具，支持压力感应与压感粗细
+- 墨迹平滑（贝塞尔曲线美化）与多种笔锋样式：时间笔锋、中国传统毛笔点、荧光笔长条点
+- 固定图形菜单：直线等下划线式标记，用于划重点与板书辅助
+- 多指书写判定可调，手掌模式 / 笔尖模式分别设置触摸阈值，书写时手掌压屏不误触
+- 完整撤销 / 重做，笔迹持久化，随时接着讲、接着写
+
+### 保存与清晰度
+- 批注可直接保存回原 PDF 文件，交付给学生或同事时无需附带额外文件
+- 墨迹保存清晰度上限可调（2~15 倍，默认 4 倍），按单页像素上限自动裁剪，清晰度与文件体积可自行权衡
+
+### 外观与界面
+- 深浅主题、主题色自定义，墨迹栏位置、缩放、边距、不透明度可调
+- 设置项全部持久化，PDF 侧与画板侧各自记忆笔色、粗细等偏好
+
+### 性能（v0.1.18 重点）
+- 打开文档时逐页取尺寸改走 `FPDF_GetPageSizeByIndexF`，只读页字典、不构造页面对象，几百页的大文档打开与切页明显更快
+- 启动后后台预热 pdfium 与 sqlite 原生库，首次打开文档少等一截
+- 页面渲染像素缓冲复用池按并发数扩容，滚动缩放时不再反复分配约 20MB 大对象，减少偶发卡顿
+
+## 版本
+
+| 版本 | 内容 |
+| --- | --- |
+| **v0.1.18** | 性能优化：页面尺寸快路径、启动预热、渲染缓冲池扩容 |
+| v0.1.17 | 墨迹保存清晰度默认倍率调整为 4 倍 |
+| v0.1.16 | 设置界面新增「墨迹保存清晰度上限」滑条（2~15 倍） |
+| v0.1.15 | 修复保存后墨迹模糊：导出分辨率自适应页面尺寸 |
+| v0.1.14 | 修复保存后墨迹变暗：alpha 预乘转直通的颜色修正 |
+| v0.1.13 | 修复单指书写无法落笔（触摸判定与笔尖模式） |
+
+## 下载
+
+- 安装包：[SCHOOL_TOOLS_PDF_x64_setup.exe](https://github.com/me13354091017/SCHOOL_TOOLS_PDF/releases/download/v0.1.18/SCHOOL_TOOLS_PDF_x64_setup.exe)
+- 免安装压缩包：[GitHub Release v0.1.18](https://github.com/me13354091017/SCHOOL_TOOLS_PDF/releases/tag/v0.1.18)
+
+## 仓库结构
+
+- [SCHOOL_PDF](SCHOOL_PDF/README.md)：当前新应用源码
+- [InkCanvasForPDF](InkCanvasForPDF/README.md)：上游基础副本
+
+## 构建
+
+需要 Windows 10 19041+ 与 .NET 10 SDK：
+
+```powershell
+dotnet build -c Release
+dotnet run --project SCHOOL_PDF/SCHOOL_TOOLS_PDF.csproj
+```
+
+## 来源与许可
+
+本项目从 [Eason-2012/InkCanvasForPDF](https://github.com/Eason-2012/InkCanvasForPDF) 派生，保留其 GPL-3.0 许可证及原始 `LICENSE` 文件。修改和再分发请遵循 GPL-3.0。
