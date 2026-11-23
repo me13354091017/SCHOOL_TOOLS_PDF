@@ -32,6 +32,9 @@ public partial class App : Application
         // 触摸屏：设置界面里的滚动容器开启手指平移（WPF 默认只能拖滚动条）。
         RegisterSettingsTouchPanning();
 
+        // 启动后台预热：提前加载 pdfium / sqlite 原生库（首次打开文档、首次读写墨迹库少等一截）。
+        StartupPrewarm.Run();
+
         // PDF 页面墨迹自愈：双指手势的抬指事件丢失后 EditingMode 会永久停在 None（光标还在，但笔和手指都写不出墨迹）。
         // 首次 Activated 时窗口已创建，交给它挂自愈入口。
         RegisterInkRecoveryOnActivated();
