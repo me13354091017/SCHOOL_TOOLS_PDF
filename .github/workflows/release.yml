@@ -35,6 +35,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create v0.1.17 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" `
-            --title "v0.1.17 墨迹默认 4 倍" `
-            --notes "墨迹保存清晰度上限的默认倍率从 3 改为 4：设置界面「墨迹书写」页的滑条默认即 4 倍，没写过该项的旧设置文件也会自动落到 4 倍。4 倍是 A4 页面在单页约 4096 x 4096 像素上限内能真正达到的档位（约 384 dpi）；再往上一挡会被像素上限自动裁到约 4.3 倍，清晰度不会继续提升。其余行为与 0.1.16 一致。"
+          gh release create v0.1.18 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" `
+            --title "v0.1.18 性能优化" `
+            --notes "性能优化：一、打开 PDF 时逐页取尺寸改走 FPDF_GetPageSizeByIndexF，只读页字典、不再逐页构造页面对象，几百页的大文档打开和切页明显更快；二、启动后自动预热 pdfium 与 sqlite 原生库，首次打开文档、首次读写墨迹库少等一截；三、页面渲染像素缓冲复用池从 1 块扩到 2 块覆盖并发渲染，滚动缩放时不再反复分配约 20MB 大对象，减少大对象堆回收带来的偶发卡顿。其余行为与 0.1.17 一致。"
