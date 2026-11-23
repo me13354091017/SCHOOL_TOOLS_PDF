@@ -226,12 +226,42 @@ internal static class PdfiumInterop
     [DllImport("pdfium.dll", EntryPoint = "FPDF_GetPageHeight", CallingConvention = CallingConvention.Cdecl)]
     private static extern double FPDF_GetPageHeightRaw(IntPtr page);
 
-    /// <summary>取某页原生尺寸（pt）。持锁 LoadPage→读尺寸→ClosePage；句柄无效返回 (0,0)。</summary>
+    /// <summary>FS_SIZEF：FPDF_GetPageSizeByIndexF 的输出（float 宽高，pt）。</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    private struct FsSizeF
+    {
+        public float Width;
+        public float Height;
+    }
+
+    [DllImport("pdfium.dll", EntryPoint = "FPDF_GetPageSizeByIndexF", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int FPDF_GetPageSizeByIndexFRaw(IntPtr document, int pageIndex, out FsSizeF size);
+
+    /// <summary>原生库缺 FPDF_GetPageSizeByIndexF 导出时一次性降级（之后恒走 LoadPage 路径）。</summary>
+    private static volatile bool _pageSizeByIndexUnavailable;
+
+    /// <summary>取某页原生尺寸（pt）。优先走 FPDF_GetPageSizeByIndexF：它只读页字典、不构造页面对象，
+    /// 打开几百页的大文档时逐页取尺寸比 LoadPage→ClosePage 快一个数量级；原生库缺该导出时退回旧路径。
+    /// 句柄无效或取不到尺寸返回 (0,0)。</summary>
     internal static (double W, double H) GetPageSize(IntPtr document, int pageIndex)
     {
         lock (PdfiumLock)
         {
             if (document == IntPtr.Zero) return (0, 0);
+            if (!_pageSizeByIndexUnavailable)
+            {
+                try
+                {
+                    if (FPDF_GetPageSizeByIndexFRaw(document, pageIndex, out FsSizeF size) != 0
+                        && size.Width > 0 && size.Height > 0)
+                        return (size.Width, size.Height);
+                    // 调用成功但尺寸非正（异常页）或干脆取不到：与旧路径一致返回 (0,0)，不再多跑一次 LoadPage。
+                    return (0, 0);
+                }
+                catch (EntryPointNotFoundException) { _pageSizeByIndexUnavailable = true; }
+                catch (DllNotFoundException) { _pageSizeByIndexUnavailable = true; }
+                catch (BadImageFormatException) { _pageSizeByIndexUnavailable = true; }
+            }
             IntPtr page = FPDF_LoadPageRaw(document, pageIndex);
             if (page == IntPtr.Zero) return (0, 0);
             try { return (FPDF_GetPageWidthRaw(page), FPDF_GetPageHeightRaw(page)); }
