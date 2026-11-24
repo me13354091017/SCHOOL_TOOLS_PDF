@@ -3,32 +3,55 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
-    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <LangVersion>latest</LangVersion>
-    <Platforms>x64</Platforms>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationIcon>Assets/app.ico</ApplicationIcon>
-    <Product>SCHOOL_TOOLS_PDF</Product>
-    <Company>SCHOOL_TOOLS</Company>
-    <AssemblyTitle>SCHOOL_TOOLS_PDF</AssemblyTitle>
-    <Description>PDF reading and teaching annotation app</Description>
-    <Copyright>GPL-3.0</Copyright>
-    <Version>0.1.19</Version>
-    <AssemblyVersion>0.1.19.0</AssemblyVersion>
-    <FileVersion>0.1.19.0</FileVersion>
-    <InformationalVersion>0.1.19</InformationalVersion>
-    <EnableWindowsTargeting>true</EnableWindowsTargeting>
-    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-  </PropertyGroup>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifiers>win-x64;win-x86;win-arm64</RuntimeIdentifiers>
+  <AssemblyName>SCHOOL_TOOLS_PDF</AssemblyName>
+  <RootNamespace>SchoolPdf</RootNamespace>
+  <Product>SCHOOL_TOOLS_PDF</Product>
+  <Authors>周之尧</Authors>
+  <Company>SCHOOL Tools</Company>
+  <AssemblyVersion>0.1.19.0</AssemblyVersion>
+  <FileVersion>0.1.19.0</FileVersion>
+  <InformationalVersion>0.1.19</InformationalVersion>
+	<ApplicationIcon>Resources\app.ico</ApplicationIcon>
+	</PropertyGroup>
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Docnet.Core" Version="2.1.0" />
-    <PackageReference Include="iNKORE.UI.WPF.Modern" Version="0.10.2" />
-    <PackageReference Include="FluentIcons.WPF" Version="1.1.2" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />
+    <PackageReference Include="Docnet.Core" Version="2.6.0" />
+    <PackageReference Include="FluentIcons.Wpf" Version="2.1.345" />
+    <PackageReference Include="iNKORE.UI.WPF.Modern" Version="0.11.0" />
+    <PackageReference Include="Sage.MarkdownRenderer" Version="1.0.0.10" />
+    <PackageReference Include="Carrot.UI.ColorPicker" Version="0.2.1" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
+    <PackageReference Include="System.IO.Hashing" Version="10.0.14" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 墨迹工具栏资源（抄 Ink-Canvas：图标字体 + 激活态勾选背景/勾标） -->
+    <Resource Include="Resources\Segoe Fluent Icons.ttf" />
+    <Resource Include="Resources\Icons-png\check-box-background.png" />
+    <Resource Include="Resources\Icons-png\checked-white.png" />
+    <Resource Include="Resources\Icons-png\checked-black.png" />
+    <Resource Include="Resources\dependencies.g.json" />
+    <Resource Include="LICENSE" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 应用图标（exe=ApplicationIcon；标题栏=Window.Icon 用 ico，多尺寸帧标题栏直接取 16px）
+         pdf.ico：文件关联图标（复制到输出目录，供用户手动设置关联时引用） -->
+    <Resource Include="Resources\app.ico" />
+    <Content Include="Resources\pdf.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
