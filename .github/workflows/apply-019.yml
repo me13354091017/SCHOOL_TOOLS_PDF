@@ -1,0 +1,26 @@
+name: Apply 0.1.19 patch
+
+# 一次性：把 tools/0.1.19.patch 应用到仓库并提交，随后连同本工作流一起删除。
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-019.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply patch and commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git apply --whitespace=nowarn tools/0.1.19.patch
+          git add SCHOOL_PDF
+          git rm -q tools/0.1.19.patch .github/workflows/apply-019.yml
+          git commit -m "feat: 0.1.19 浮动栏点击穿透/粗细 0.5~20/清晰度 1~4"
+          git push
