@@ -27,7 +27,7 @@
             <Viewbox.LayoutTransform>
                 <ScaleTransform x:Name="ViewboxFloatingBarScaleTransform" ScaleX="1" ScaleY="1" />
             </Viewbox.LayoutTransform>
-            <ikw:SimpleStackPanel Orientation="Horizontal">
+            <ikw:SimpleStackPanel Orientation="Horizontal" Background="Transparent">
 
                 <ikw:SimpleStackPanel.Resources>
                     <!--  定义 SolidColorBrush 资源  -->
@@ -142,7 +142,7 @@
                                 </Grid>
                             </Border>
                         </Button>
-                        <ikw:SimpleStackPanel Name="StackPanelCanvasControls" Orientation="{Binding ElementName=StackPanelFloatingBar, Path=Orientation}" Visibility="Visible">
+                        <ikw:SimpleStackPanel Name="StackPanelCanvasControls" Background="Transparent" Orientation="{Binding ElementName=StackPanelFloatingBar, Path=Orientation}" Visibility="Visible">
                             <!--  图形入口按钮 + 形状面板（ICA 浮动栏 ImageDrawShape_Click 入口 + BorderDrawShape 面板移植，样式一致，初始隐藏）  -->
                             <!--  墨迹选项弹窗（照 ICA PenPalette：Popup + Custom 放置，PlacementTarget=墨迹按钮，见代码后置回调）  -->
                             <Popup x:Name="PenPalette"
@@ -199,14 +199,14 @@
                                                         Grid.Column="1"
                                                         Margin="10,0,0,0"
                                                         IsSnapToTickEnabled="True"
-                                                        Maximum="30"
-                                                        Minimum="1"
-                                                        TickFrequency="1"
+                                                        Maximum="20"
+                                                        Minimum="0.5"
+                                                        TickFrequency="0.5"
                                                         TickPlacement="None"
                                                         ValueChanged="InkWidthSlider_ValueChanged"
                                                         Value="5"
                                                         VerticalAlignment="Center" />
-                                                    <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource FloatBarForeground}" Text="{Binding Value, ElementName=InkWidthSliderHard, Mode=OneWay}" />
+                                                    <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource FloatBarForeground}" Text="{Binding Value, ElementName=InkWidthSliderHard, Mode=OneWay, StringFormat={}{0:0.#}}" />
                                                 </Grid>
                                                 <!-- 行3：9 色调色盘 + 亮/暗系切换（沿用原版色块样式） -->
                                                 <Controls:UniformGrid Rows="2" Columns="5" HorizontalAlignment="Center">
@@ -432,14 +432,14 @@
                                                         Grid.Column="1"
                                                         Margin="10,0,0,0"
                                                         IsSnapToTickEnabled="True"
-                                                        Maximum="30"
-                                                        Minimum="1"
-                                                        TickFrequency="1"
+                                                        Maximum="20"
+                                                        Minimum="0.5"
+                                                        TickFrequency="0.5"
                                                         TickPlacement="None"
                                                         ValueChanged="InkWidthSlider_ValueChanged"
                                                         Value="5"
                                                         VerticalAlignment="Center" />
-                                                    <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource FloatBarForeground}" Text="{Binding Value, ElementName=InkWidthSliderSoft, Mode=OneWay}" />
+                                                    <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource FloatBarForeground}" Text="{Binding Value, ElementName=InkWidthSliderSoft, Mode=OneWay, StringFormat={}{0:0.#}}" />
                                                 </Grid>
                                                 <!-- 行3：9 色调色盘 + 亮/暗系切换（沿用原版色块样式） -->
                                                 <Controls:UniformGrid Rows="2" Columns="5" HorizontalAlignment="Center">
@@ -679,14 +679,14 @@
                                                         Grid.Column="1"
                                                         Margin="10,0,0,0"
                                                         IsSnapToTickEnabled="True"
-                                                        Maximum="30"
-                                                        Minimum="1"
-                                                        TickFrequency="1"
+                                                        Maximum="20"
+                                                        Minimum="0.5"
+                                                        TickFrequency="0.5"
                                                         TickPlacement="None"
                                                         ValueChanged="InkHighlighterWidthSlider_ValueChanged"
                                                         Value="5"
                                                         VerticalAlignment="Center" />
-                                                    <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource FloatBarForeground}" Text="{Binding Value, ElementName=InkHighlighterWidthSlider, Mode=OneWay}" />
+                                                    <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource FloatBarForeground}" Text="{Binding Value, ElementName=InkHighlighterWidthSlider, Mode=OneWay, StringFormat={}{0:0.#}}" />
                                                 </Grid>
                                                 <!-- 行4：6 色荧光笔色块（沿用原版色块样式） -->
                                                 <Controls:UniformGrid Columns="3" HorizontalAlignment="Center">

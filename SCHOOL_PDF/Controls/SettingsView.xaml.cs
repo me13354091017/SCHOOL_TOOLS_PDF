@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -1029,11 +1030,11 @@ public partial class SettingsView : System.Windows.Controls.UserControl
         RefreshDefaultPdfPenColorItems();   // 内部按 mode 填 18 / 6 项并选中当前值
         _syncingDefaultOptions = true;
         SliderDefaultPdfPenWidth.Value = Math.Clamp(
-            highlighter ? vm.Settings.DefaultPdfHighlighterWidth : vm.Settings.DefaultPdfPenWidth, 1, 30);
+            highlighter ? vm.Settings.DefaultPdfHighlighterWidth : vm.Settings.DefaultPdfPenWidth, 0.5, 20);
         SliderDefaultPdfAlpha.Value = Math.Clamp(vm.Settings.DefaultPdfHighlighterAlpha, 20, 240);
         SliderDefaultEraserSizePdf.Value = Math.Clamp(vm.Settings.DefaultPdfEraserSize, 1, 30);
         _syncingDefaultOptions = false;
-        DefaultPdfPenWidthValue.Text = ((int)SliderDefaultPdfPenWidth.Value).ToString();
+        DefaultPdfPenWidthValue.Text = SliderDefaultPdfPenWidth.Value.ToString("0.#", CultureInfo.InvariantCulture);
         DefaultPdfAlphaValue.Text = ((int)SliderDefaultPdfAlpha.Value).ToString();
         DefaultEraserSizeValuePdf.Text = ((int)SliderDefaultEraserSizePdf.Value).ToString();
         CardDefaultPdfAlpha.Visibility = highlighter ? Visibility.Visible : Visibility.Collapsed;
@@ -1140,8 +1141,8 @@ public partial class SettingsView : System.Windows.Controls.UserControl
     private void SliderDefaultPdfPenWidth_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (_syncingDefaultOptions || Vm is not { } vm) return;
-        double width = Math.Clamp((int)Math.Round(e.NewValue), 1, 30);
-        DefaultPdfPenWidthValue.Text = width.ToString("0");
+        double width = Math.Clamp(Math.Round(e.NewValue * 2) / 2, 0.5, 20);
+        DefaultPdfPenWidthValue.Text = width.ToString("0.#", CultureInfo.InvariantCulture);
         if (vm.Settings.DefaultPdfPenMode == 2)
         {
             if (Math.Abs(vm.Settings.DefaultPdfHighlighterWidth - width) < 0.001) return;

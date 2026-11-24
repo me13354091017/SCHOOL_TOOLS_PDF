@@ -69,23 +69,34 @@ public partial class InkToolBar
 
     /// <summary>面板外点击关闭（非固定状态生效；宿主 Window PreviewMouseDown 隧道入口，打开时挂接/关闭时摘除）。</summary>
     private void ShapePanelOutsideDown(object sender, MouseButtonEventArgs e)
-        => ShapePanelOutsideClose(e.OriginalSource as DependencyObject);
+    {
+        if (!ShapePanelOutsideClose(e.OriginalSource as DependencyObject))
+            return;
+        // 笔触点外关闭只用于收面板，吞掉这次按下，避免同一笔落到页面误画（点击穿透）
+        if (e.StylusDevice != null)
+            e.Handled = true;
+    }
 
     /// <summary>触摸版面板外关闭入口：触摸被 InkCanvas 处理时不会提升成鼠标事件，必须单独挂 PreviewTouchDown。</summary>
     private void ShapePanelOutsideTouchDown(object? sender, TouchEventArgs e)
-        => ShapePanelOutsideClose(e.OriginalSource as DependencyObject);
+    {
+        if (ShapePanelOutsideClose(e.OriginalSource as DependencyObject))
+            e.Handled = true;
+    }
 
-    /// <summary>面板外关闭判定体（鼠标/触摸共用）：非固定状态、点击源不在面板内也不在入口按钮上才关。</summary>
-    private void ShapePanelOutsideClose(DependencyObject? src)
+    /// <summary>面板外关闭判定体（鼠标/触摸共用）：非固定状态、点击源不在面板内也不在入口按钮上才关。
+    /// 返回是否真的关闭（供调用方决定是否吞掉本次按下）。</summary>
+    private bool ShapePanelOutsideClose(DependencyObject? src)
     {
         if (_shapePanelPinned || !ShapePalette.IsOpen)
-            return;
+            return false;
         if (src == null)
-            return;
+            return false;
         // 点在面板内或图形入口按钮上交给各自处理器（入口按钮 Click 负责 toggle）
         if (BorderDrawShape.IsAncestorOf(src) || BtnDrawShape.IsAncestorOf(src))
-            return;
+            return false;
         CollapseBorderDrawShape();
+        return true;
     }
 
     /// <summary>挂接宿主窗口的点外关闭（面板打开时调用一次；Loaded 后窗口引用可用）。</summary>

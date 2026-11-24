@@ -27,6 +27,10 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
     /// <summary>最近一次选中态模式（mouse/pen/color/eraser），供文字注释切换后幂等重刷。</summary>
     private string? _lastMode;
 
+    /// <summary>加载遮罩订阅防重复挂接：透明（Opacity=0）的元素仍参与命中测试，加载期必须停用，
+    /// 否则点「看不见的浮动栏」会被它拦住（用户感知为点击穿透）。</summary>
+    private bool _openingHookHooked;
+
     /// <summary>选中项的移入叠加色（随主题刷新：浅 8% 黑 / 深 13% 白）。</summary>
     private Brush _hoverOverlayBrush = Brushes.Transparent;
 
@@ -129,6 +133,16 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
                                 });
                         };
                     }
+                }
+                if (Vm is { } vm2 && !_openingHookHooked)
+                {
+                    _openingHookHooked = true;
+                    vm2.PropertyChanged += (_, e) =>
+                    {
+                        if (e.PropertyName == nameof(MainViewModel.IsOpeningPdf))
+                            IsHitTestVisible = !vm2.IsOpeningPdf;
+                    };
+                    IsHitTestVisible = !vm2.IsOpeningPdf;
                 }
                 ApplyThemeToPalette();   // 色块 + 主题图标/文字 + 当前色勾标一并恢复
                 UpdateBoardToolState("mouse");   // 首次加载高亮"鼠标"（默认即浏览模式，ICA 未做但需要）
@@ -572,32 +586,46 @@ public void ApplyFloatBarText(bool show)
     }
 
     private void OutsideCloseHandler(object sender, MouseButtonEventArgs e)
-        => CloseToolbarMenusOutside(e.OriginalSource as DependencyObject);
+    {
+        if (!CloseToolbarMenusOutside(e.OriginalSource as DependencyObject))
+            return;
+        // 笔（会被提升为鼠标事件）与触摸的「点外关闭」只用来收菜单：把这一次按下吞掉，
+        // 否则同一笔会继续落到下面的页面成为误画（用户感知为菜单周围点击穿透）。
+        if (e.StylusDevice != null)
+            e.Handled = true;
+    }
 
     /// <summary>触摸版点外关闭入口：与鼠标版共用同一判定体。</summary>
     private void OutsideCloseTouchHandler(object? sender, TouchEventArgs e)
-        => CloseToolbarMenusOutside(e.OriginalSource as DependencyObject);
+    {
+        if (CloseToolbarMenusOutside(e.OriginalSource as DependencyObject))
+            e.Handled = true;
+    }
 
-    /// <summary>点外关闭判定体（鼠标/触摸共用）。</summary>
-    private void CloseToolbarMenusOutside(DependencyObject? d)
+    /// <summary>点外关闭判定体（鼠标/触摸共用）。返回是否真的关闭了菜单（供调用方决定是否吞掉本次按下）。</summary>
+    private bool CloseToolbarMenusOutside(DependencyObject? d)
     {
         bool penOpen = PenPalette.IsOpen;
         bool eraserOpen = EraserPalette.IsOpen;
         if (!penOpen && !eraserOpen)
         {
             UnhookOutsideClose();
-            return;
+            return false;
         }
-        if (d == null) return;
+        if (d == null) return false;
+        bool dismissed = false;
         // 点在墨迹面板内或墨迹按钮上不关（按钮留给 PenIcon_Click 自己 toggle）；橡皮同理
         if (penOpen && !IsDescendantOf(d, PenPaletteRoot) && !IsDescendantOf(d, BtnPen))
         {
             PopupFlyAnimator.FlyOut(PenPalette, PenPaletteRoot);   // 滑出动画幂等，重复点外不叠加
+            dismissed = true;
         }
         if (eraserOpen && !IsDescendantOf(d, EraserPaletteRoot) && !IsDescendantOf(d, BtnEraser))
         {
             PopupFlyAnimator.FlyOut(EraserPalette, EraserPaletteRoot);
+            dismissed = true;
         }
+        return dismissed;
     }
 
     /// <summary>视觉/逻辑树向上查找祖先（Popup 子树用视觉树，与主树隔离）。</summary>

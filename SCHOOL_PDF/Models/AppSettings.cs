@@ -271,7 +271,7 @@ public class AppSettings
 
     // ══ 墨迹导出清晰度 ══
 
-    /// <summary>保存批注时墨迹栅格图的最大放大倍率（2~15，默认 4）：越大越清晰，内存与 PDF 体积同步增长；
+    /// <summary>保存批注时墨迹栅格图的最大放大倍率（1~4，默认 4）：越大越清晰，内存与 PDF 体积同步增长；
     /// 实际生效值还要受单页像素上限（约 4096×4096）裁剪，超大页面达不到设定倍率。</summary>
     [JsonPropertyName("inkExportQualityScale")]
     public double InkExportQualityScale { get; set; } = 4.0;

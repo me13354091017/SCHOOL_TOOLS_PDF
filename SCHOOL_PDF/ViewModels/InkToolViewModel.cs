@@ -262,11 +262,11 @@ public sealed class InkToolViewModel : ViewModelBase
         {
             case InkPenType.Hard:
             case InkPenType.Soft:
-                InkWidth = Math.Clamp(_penWidth, 1, 30);
+                InkWidth = Math.Clamp(_penWidth, 0.5, 20);
                 SetInkColor(PenLightColorMap.ContainsKey(_penColor) ? _penColor : 1);
                 break;
             case InkPenType.Highlighter:
-                InkWidth = Math.Clamp(_highlighterWidth, 1, 30);
+                InkWidth = Math.Clamp(_highlighterWidth, 0.5, 20);
                 SetInkColor(HighlighterColorMap.ContainsKey(_highlighterColor) ? _highlighterColor : 103);
                 break;
         }
@@ -277,9 +277,9 @@ public sealed class InkToolViewModel : ViewModelBase
     public void LoadFromSettings(AppSettings s)
     {
         _penColor = PenLightColorMap.ContainsKey(s.PenColor) ? s.PenColor : 1;
-        _penWidth = Math.Clamp(s.PenWidth, 1, 30);
+        _penWidth = Math.Clamp(s.PenWidth, 0.5, 20);
         _highlighterColor = HighlighterColorMap.ContainsKey(s.HighlighterColor) ? s.HighlighterColor : 103;
-        _highlighterWidth = Math.Clamp(s.HighlighterWidth, 1, 30);
+        _highlighterWidth = Math.Clamp(s.HighlighterWidth, 0.5, 20);
         InkAlpha = (byte)Math.Clamp(s.InkAlpha, 20, 240);
         InkStyle = Math.Clamp(s.InkStyle, 0, 3);   // 笔锋全局共享
         IsInkToShapeEnabled = s.IsInkToShapeEnabled;   // 墨迹纠正全局共享
@@ -303,13 +303,13 @@ public sealed class InkToolViewModel : ViewModelBase
 
     private double _inkWidth = 3;
 
-    /// <summary>画笔粗细（1~30）。</summary>
+    /// <summary>画笔粗细（0.5~20，步进 0.5）。</summary>
     public double InkWidth
     {
         get => _inkWidth;
         set
         {
-            if (!SetField(ref _inkWidth, Math.Clamp(value, 1, 30)))
+            if (!SetField(ref _inkWidth, Math.Clamp(value, 0.5, 20)))
                 return;
             ApplyCurrentColor();   // 荧光笔宽度 = 30 + InkWidth/2
         }

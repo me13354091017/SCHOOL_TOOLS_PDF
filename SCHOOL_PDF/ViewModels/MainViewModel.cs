@@ -664,9 +664,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     {
         Settings.InkType = Math.Clamp(Settings.DefaultPdfPenMode, 0, 2);
         Settings.PenColor = Settings.DefaultPdfPenColor;
-        Settings.PenWidth = Math.Clamp(Settings.DefaultPdfPenWidth, 1, 30);
+        Settings.PenWidth = Math.Clamp(Settings.DefaultPdfPenWidth, 0.5, 20);
         Settings.HighlighterColor = Settings.DefaultPdfHighlighterColor;
-        Settings.HighlighterWidth = Math.Clamp(Settings.DefaultPdfHighlighterWidth, 1, 30);
+        Settings.HighlighterWidth = Math.Clamp(Settings.DefaultPdfHighlighterWidth, 0.5, 20);
         Settings.InkAlpha = Math.Clamp(Settings.DefaultPdfHighlighterAlpha, 20, 240);
         Settings.UseLightThemeColor = Settings.DefaultPdfColorLightTheme;
         Settings.IsMultiFingerInkEnabled = Settings.DefaultPdfMultiFinger;

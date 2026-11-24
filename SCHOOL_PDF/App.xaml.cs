@@ -40,7 +40,7 @@ public partial class App : Application
         RegisterInkRecoveryOnActivated();
 
         // 设置界面「墨迹保存清晰度上限」滑条：SettingsView.xaml 过大（80KB+），改由代码在
-        // 「墨迹书写」页末尾追加一张 SettingsCard（2~15 倍，值写回 Settings.json）。
+        // 「墨迹书写」页末尾追加一张 SettingsCard（1~4 倍，值写回 Settings.json）。
         RegisterInkQualityCard();
 
         // 挂接父控制台：诊断 Console.WriteLine 在终端启动/调试时可见（WinExe 默认无控制台；
@@ -145,7 +145,7 @@ public partial class App : Application
 
     private static bool _inkQualityCardAttached;
 
-    /// <summary>往「墨迹书写」设置页末尾追加一张清晰度滑条卡片（2~15 倍）。
+    /// <summary>往「墨迹书写」设置页末尾追加一张清晰度滑条卡片（1~4 倍）。
     /// 返回 true 表示已处理（无论注入成功或已注入过），调用方据此摘掉 Activated 钩子。</summary>
     private static bool AttachInkQualityCard(DependencyObject root)
     {
@@ -164,8 +164,8 @@ public partial class App : Application
         };
         var slider = new Slider
         {
-            Minimum = 2,
-            Maximum = 15,
+            Minimum = 1,
+            Maximum = 4,
             TickFrequency = 1,
             IsSnapToTickEnabled = true,
             Width = 220,
@@ -180,13 +180,13 @@ public partial class App : Application
         };
 
         double initial = SettingsService.Load().InkExportQualityScale;
-        if (initial < 2 || initial > 15)
+        if (initial < 1 || initial > 4)
             initial = 4;
         slider.Value = initial;
         SetInkQualityText(valueText, initial);
         slider.ValueChanged += (_, args) =>
         {
-            double value = Math.Clamp(args.NewValue, 2, 15);
+            double value = Math.Clamp(args.NewValue, 1, 4);
             SetInkQualityText(valueText, value);
             try
             {
