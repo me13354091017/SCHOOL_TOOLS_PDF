@@ -1,0 +1,56 @@
+name: Apply 0.1.21 patch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-021.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download and verify patch
+        run: |
+          curl -fsSL -o /tmp/p021.patch "https://aka.doubaocdn.com/s/2n9z4e5aqb"
+          echo "99cbcf18dc6a6d2143f0c43c6f9545c3183736c3ace00b148ff4019c93f8f9cd  /tmp/p021.patch" | sha256sum -c
+          git apply --whitespace=nowarn /tmp/p021.patch
+
+      - name: Bump version to 0.1.21
+        run: |
+          python3 - <<'PY'
+          p = 'SCHOOL_PDF/SCHOOL_TOOLS_PDF.csproj'
+          s = open(p, encoding='utf-8').read()
+          s = s.replace('<AssemblyVersion>0.1.20.0</AssemblyVersion>', '<AssemblyVersion>0.1.21.0</AssemblyVersion>')
+          s = s.replace('<FileVersion>0.1.20.0</FileVersion>', '<FileVersion>0.1.21.0</FileVersion>')
+          s = s.replace('<InformationalVersion>0.1.20</InformationalVersion>', '<InformationalVersion>0.1.21</InformationalVersion>')
+          open(p, 'w', encoding='utf-8', newline='').write(s)
+
+          p = 'SCHOOL_PDF/installer.iss'
+          s = open(p, encoding='utf-8').read().replace('#define MyAppVersion "0.1.20"', '#define MyAppVersion "0.1.21"')
+          open(p, 'w', encoding='utf-8', newline='').write(s)
+
+          p = 'README.md'
+          s = open(p, encoding='utf-8').read()
+          s = s.replace('当前版本 **v0.1.20（隐藏全部滚动条）**', '当前版本 **v0.1.21（浮动栏点按不再出墨点）**')
+          s = s.replace('| **v0.1.20** | 隐藏全部滚动条（阅读区、缩略图、设置页、更新日志与错误窗口） |',
+                        '| **v0.1.21** | 修复点浮动栏按钮时原地出墨点：整笔落在浮动栏范围内的墨迹即时丢弃 |\n| v0.1.20 | 隐藏全部滚动条（阅读区、缩略图、设置页、更新日志与错误窗口） |')
+          s = s.replace('releases/download/v0.1.20/SCHOOL_TOOLS_PDF_x64_setup.exe', 'releases/download/v0.1.21/SCHOOL_TOOLS_PDF_x64_setup.exe')
+          s = s.replace('[GitHub Release v0.1.19](https://github.com/me13354091017/SCHOOL_TOOLS_PDF/releases/tag/v0.1.20)', '[GitHub Release v0.1.21](https://github.com/me13354091017/SCHOOL_TOOLS_PDF/releases/tag/v0.1.21)')
+          open(p, 'w', encoding='utf-8', newline='').write(s)
+          PY
+
+      - name: Commit
+        run: |
+          git config user.name "school-tools-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add -A
+          git rm -f .github/workflows/apply-021.yml
+          git commit -m "feat: 0.1.21 修复点浮动栏按钮原地出墨点"
+          git push
