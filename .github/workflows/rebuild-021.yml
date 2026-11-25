@@ -1,0 +1,50 @@
+name: Rebuild 0.1.21 (hover guard)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/rebuild-021.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply hover guard patch
+        shell: bash
+        run: |
+          curl -fsSL -o /tmp/fix2.patch "https://aka.doubaocdn.com/s/OsjO2JAVLk"
+          echo "e0c6f3772cd6eb2833f2a7f7f781a23ff86bfc23372df348fc854016a1eb1fcd  /tmp/fix2.patch" | sha256sum -c
+          git apply --whitespace=nowarn /tmp/fix2.patch
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish
+        run: dotnet publish SCHOOL_PDF/SCHOOL_TOOLS_PDF.csproj -c Release -r win-x64 --self-contained
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Compile installer
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DArch=x64 /DUseEnglishOnly=1 SCHOOL_PDF\installer.iss'
+
+      - name: Replace release asset and commit source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload v0.1.21 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" --clobber
+          git config user.name "school-tools-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add SCHOOL_PDF/Controls/InkToolBar.xaml.cs SCHOOL_PDF/Controls/PageInkCanvas.cs
+          git rm -f .github/workflows/rebuild-021.yml
+          git commit -m "fix: 0.1.21 栏内墨迹丢弃仅限指针悬停，防误删历史批注"
+          git push
