@@ -160,6 +160,10 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
     /// <summary>当前窗口的浮动栏实例：页面画布用它做「栏内墨迹丢弃」兜底。</summary>
     internal static InkToolBar? Current { get; private set; }
 
+    /// <summary>指针此刻是否真的停在栏体上——只有这种情况才丢弃"栏内整笔"，
+    /// 避免打开文档回填历史墨迹（无指针悬停）时误删浮动栏下方原有的批注。</summary>
+    internal bool IsPointerOverBarBody => BorderFloatingBarMainControls.IsMouseOver;
+
     /// <summary>栏体是否处于可交互可见状态（隐藏/加载期不做墨迹丢弃判定）。</summary>
     internal bool IsBarInputRegionActive =>
         IsVisible && BorderFloatingBarMainControls.IsVisible &&

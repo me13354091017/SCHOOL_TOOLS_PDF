@@ -35,7 +35,7 @@ public class PageInkCanvas : InkCanvas
         if (_droppingBarStroke || e.Added.Count == 0)
             return;
         var bar = InkToolBar.Current;
-        if (bar is null || !bar.IsBarInputRegionActive)
+        if (bar is null || !bar.IsBarInputRegionActive || !bar.IsPointerOverBarBody)
             return;
         foreach (var stroke in e.Added)
         {
