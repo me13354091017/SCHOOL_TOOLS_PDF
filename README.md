@@ -2,7 +2,7 @@
 
 面向课堂讲授与教学资料批注的 Windows PDF 应用——阅读、手写、标注在同一套工作流里完成，讲解时的圈画、公式推演与图形示意不必再切换到另一款白板工具。
 
-当前版本 **v0.1.19（命中修复与区间调整）** ｜ Windows 10 19041+ ｜ .NET 10 ｜ WPF + PDFium + WinRT Ink
+当前版本 **v0.1.20（隐藏全部滚动条）** ｜ Windows 10 19041+ ｜ .NET 10 ｜ WPF + PDFium + WinRT Ink
 
 ## 功能
 
@@ -25,6 +25,7 @@
 
 ### 外观与界面
 - 深浅主题、主题色自定义，墨迹栏位置、缩放、边距、不透明度可调
+- 所有滚动条默认隐藏且不占布局，滚动仍可用滚轮与触摸平移
 - 设置项全部持久化，PDF 侧与画板侧各自记忆笔色、粗细等偏好
 
 ### 性能（v0.1.18 重点）
@@ -36,7 +37,8 @@
 
 | 版本 | 内容 |
 | --- | --- |
-| **v0.1.19** | 修复点击浮动栏穿透；笔粗细区间改为 0.5~20；墨迹清晰度区间改为 1~4 |
+| **v0.1.20** | 隐藏全部滚动条（阅读区、缩略图、设置页、更新日志与错误窗口） |
+| v0.1.19 | 修复点击浮动栏穿透；笔粗细区间改为 0.5~20；墨迹清晰度区间改为 1~4 |
 | v0.1.18 | 性能优化：页面尺寸快路径、启动预热、渲染缓冲池扩容 |
 | v0.1.17 | 墨迹保存清晰度默认倍率调整为 4 倍 |
 | v0.1.16 | 设置界面新增「墨迹保存清晰度上限」滑条（2~15 倍） |
@@ -46,8 +48,8 @@
 
 ## 下载
 
-- 安装包：[SCHOOL_TOOLS_PDF_x64_setup.exe](https://github.com/me13354091017/SCHOOL_TOOLS_PDF/releases/download/v0.1.19/SCHOOL_TOOLS_PDF_x64_setup.exe)
-- 免安装压缩包：[GitHub Release v0.1.19](https://github.com/me13354091017/SCHOOL_TOOLS_PDF/releases/tag/v0.1.19)
+- 安装包：[SCHOOL_TOOLS_PDF_x64_setup.exe](https://github.com/me13354091017/SCHOOL_TOOLS_PDF/releases/download/v0.1.20/SCHOOL_TOOLS_PDF_x64_setup.exe)
+- 免安装压缩包：[GitHub Release v0.1.19](https://github.com/me13354091017/SCHOOL_TOOLS_PDF/releases/tag/v0.1.20)
 
 ## 仓库结构
 
