@@ -35,6 +35,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create v0.1.20 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" `
-            --title "v0.1.20 隐藏滚动条" `
-            --notes "本次更新：移除全部滚动条——阅读区、缩略图列表、设置页、更新日志与错误窗口里的滚动条一律隐藏且不占布局空间，滚动仍可用滚轮、触摸平移与 PageUp/PageDown。其余功能与 0.1.19 一致。"
+          gh release create v0.1.21 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" `
+            --title "v0.1.21 浮动栏点按修墨点" `
+            --notes "本次更新：修复点击墨迹浮动栏上的按钮时，页面在原地冒出一个墨点的问题。落点在浮动栏范围内的整笔触摸或笔迹不再被页面画布收下，抬笔时整笔丢弃；即使有漏网笔画，只要所有点都落在浮动栏矩形内也会被立刻移除。其余功能与 0.1.20 一致。"
