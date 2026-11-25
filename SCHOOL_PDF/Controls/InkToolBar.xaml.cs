@@ -37,6 +37,12 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
     public InkToolBar()
     {
         InitializeComponent();
+        Current = this;
+        Unloaded += (_, _) =>
+        {
+            if (ReferenceEquals(Current, this))
+                Current = null;
+        };
         // 墨迹选项 Popup 定位（照 ICA PenPalette.CustomPopupPlacementCallback）：
         // 水平居中于 PlacementTarget（墨迹按钮），悬于其上方 8px；PopupPrimaryAxis.Vertical 让屏幕边缘自动翻转
         PenPalette.CustomPopupPlacementCallback =
@@ -150,6 +156,46 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
     }
 
     private MainViewModel? Vm => DataContext as MainViewModel;
+
+    /// <summary>当前窗口的浮动栏实例：页面画布用它做「栏内墨迹丢弃」兜底。</summary>
+    internal static InkToolBar? Current { get; private set; }
+
+    /// <summary>栏体是否处于可交互可见状态（隐藏/加载期不做墨迹丢弃判定）。</summary>
+    internal bool IsBarInputRegionActive =>
+        IsVisible && BorderFloatingBarMainControls.IsVisible &&
+        BorderFloatingBarMainControls.ActualWidth > 4 && BorderFloatingBarMainControls.ActualHeight > 4;
+
+    /// <summary>浮动栏主边框在目标视觉坐标系里的矩形（失败返回 Rect.Empty）。</summary>
+    internal Rect BarRectIn(Visual target)
+    {
+        try
+        {
+            var toTarget = BorderFloatingBarMainControls.TransformToVisual(target);
+            var topLeft = toTarget.Transform(new Point(0, 0));
+            var bottomRight = toTarget.Transform(
+                new Point(BorderFloatingBarMainControls.ActualWidth, BorderFloatingBarMainControls.ActualHeight));
+            return new Rect(topLeft, bottomRight);
+        }
+        catch
+        {
+            return Rect.Empty;
+        }
+    }
+
+    /// <summary>笔画的所有点是否都落在浮动栏主边框内——点按钮时原地生成的墨点会满足此条件。</summary>
+    internal bool IsStrokeFullyInsideBar(System.Windows.Ink.Stroke stroke, Visual target)
+    {
+        if (stroke.StylusPoints.Count == 0)
+            return false;
+        var rect = BarRectIn(target);
+        if (rect.IsEmpty || rect.Width < 4 || rect.Height < 4)
+            return false;
+        rect.Inflate(2, 2);
+        foreach (System.Windows.Input.StylusPoint point in stroke.StylusPoints)
+            if (!rect.Contains(point.X, point.Y))
+                return false;
+        return true;
+    }
 
     // ══════════ 定位（宿主铺满整窗，栏位置由代码算 Margin 驱动）══════════
 

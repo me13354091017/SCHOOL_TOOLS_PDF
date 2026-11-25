@@ -487,6 +487,14 @@ public sealed class TimePressureController
     /// <summary>抬笔处理（UI 线程，OnStylusUpProcessed 调用）：自绘设备提交笔画；主设备（原生收墨）只补最后一帧。</summary>
     internal void OnDeviceUpProcessed(int deviceId, int tabletDeviceId)
     {
+        if (SessionFullyInsideFloatingBar(deviceId))
+        {
+            // 整笔落在浮动栏上（点按钮时被广域投递的触摸/笔触点）：丢弃，避免"点按钮原地出墨点"
+            lock (_sync)
+                _downDevices.Remove(deviceId);
+            EndSession(deviceId);
+            return;
+        }
         lock (_sync)
             _downDevices.Remove(deviceId);
         if (ShouldCommitOnUp(deviceId, tabletDeviceId))
@@ -504,6 +512,29 @@ public sealed class TimePressureController
         OnUi(() => _overlay.Dispatcher.BeginInvoke(
             DispatcherPriority.Background,
             new Action(() => EndSessionIfToken(deviceId, token))));
+    }
+
+    /// <summary>本设备整笔采样是否全部落在浮动栏矩形内（点按钮原地生成墨点的判定）。</summary>
+    private bool SessionFullyInsideFloatingBar(int deviceId)
+    {
+        var bar = SchoolPdf.Controls.InkToolBar.Current;
+        if (bar is null || !bar.IsBarInputRegionActive)
+            return false;
+        var rect = bar.BarRectIn(_canvas);
+        if (rect.IsEmpty || rect.Width < 4 || rect.Height < 4)
+            return false;
+        rect.Inflate(2, 2);
+        List<TimePressureSample> samples;
+        lock (_sync)
+        {
+            if (!_sessions.TryGetValue(deviceId, out var session) || session.Samples.Count == 0)
+                return false;
+            samples = new List<TimePressureSample>(session.Samples);
+        }
+        foreach (var sample in samples)
+            if (!rect.Contains(sample.X, sample.Y))
+                return false;
+        return true;
     }
 
     /// <summary>延迟清场：仅当该设备的会话仍是当初那一个（令牌一致）时才结束。</summary>

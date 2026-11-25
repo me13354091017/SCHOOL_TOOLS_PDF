@@ -1,4 +1,6 @@
+using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Ink;
 using SchoolPdf.Services;
 
 namespace SchoolPdf.Controls;
@@ -22,6 +24,27 @@ public class PageInkCanvas : InkCanvas
             if (e.StylusDevice is { } device)
                 Controller.AbortStrokeIfPending(device.Id);
         };
+        // 浮动栏防穿透兜底：落在浮动栏矩形内的墨迹（多为点按钮时原地留下的墨点）即时丢弃
+        Strokes.StrokesChanged += OnStrokesChanged;
+    }
+
+    private bool _droppingBarStroke;
+
+    private void OnStrokesChanged(object? sender, StrokeCollectionChangedEventArgs e)
+    {
+        if (_droppingBarStroke || e.Added.Count == 0)
+            return;
+        var bar = InkToolBar.Current;
+        if (bar is null || !bar.IsBarInputRegionActive)
+            return;
+        foreach (var stroke in e.Added)
+        {
+            if (!bar.IsStrokeFullyInsideBar(stroke, this))
+                continue;
+            _droppingBarStroke = true;
+            try { Strokes.Remove(stroke); }
+            finally { _droppingBarStroke = false; }
+        }
     }
 
     /// <summary>本页的时间笔锋控制器（由 MainWindow 在加载/卸载与选项变化时驱动）。</summary>
