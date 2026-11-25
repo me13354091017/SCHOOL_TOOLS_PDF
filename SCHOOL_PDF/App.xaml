@@ -5,13 +5,34 @@
              StartupUri="MainWindow.xaml">
     <Application.Resources>
         <ResourceDictionary>
-            <!-- 墨迹工具栏图标字体（抄 Ink-Canvas App.xaml：Segoe Fluent Icons.ttf） -->
-            <FontFamily x:Key="FluentIconFontFamily">pack://application:,,,/Resources/#Segoe Fluent Icons</FontFamily>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Theme/Light.xaml"/>
                 <ui:ThemeResources/>
                 <ui:XamlControlsResources/>
             </ResourceDictionary.MergedDictionaries>
+
+            <!-- 墨迹工具栏图标字体（抄 Ink-Canvas App.xaml：Segoe Fluent Icons.ttf） -->
+            <FontFamily x:Key="FluentIconFontFamily">pack://application:,,,/Resources/#Segoe Fluent Icons</FontFamily>
+
+            <!-- 全局隐藏滚动条：ScrollViewer / ListBox / 文本框里的 ScrollBar 一律零尺寸、不占位、不参与命中。
+                 滚动本身仍可用（滚轮、触摸平移、PageUp/PageDown 与代码 ScrollToVerticalOffset 都不依赖滚动条视觉） -->
+            <Style TargetType="{x:Type ScrollBar}">
+                <Setter Property="Width" Value="0" />
+                <Setter Property="Height" Value="0" />
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="MinHeight" Value="0" />
+                <Setter Property="Opacity" Value="0" />
+                <Setter Property="IsHitTestVisible" Value="False" />
+                <Setter Property="IsTabStop" Value="False" />
+                <Setter Property="Focusable" Value="False" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type ScrollBar}">
+                            <Border Width="0" Height="0" Background="Transparent" />
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
