@@ -16,6 +16,14 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Apply 0.1.24 patch
+        shell: pwsh
+        run: |
+          curl.exe -fsSL -o patch024.patch "https://aka.doubaocdn.com/s/Ukumsyg79b"
+          $h = (Get-FileHash patch024.patch -Algorithm SHA256).Hash.ToLower()
+          if ($h -ne "f87a1b4e402a0da47a07691960c8ac779d6a8fffb275f2973e362bc96af33e0a") { throw "patch hash mismatch: $h" }
+          git apply --whitespace=nowarn patch024.patch
+          git status --short
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -35,6 +43,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create v0.1.23 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" `
-            --title "v0.1.23 激光笔与 UInk 墨迹交换" `
-            --notes "本次更新：一、新增激光笔，点浮动栏的激光按钮进入，按住笔或鼠标就出红色光轨，笔停住会留下光点，一秒后自动淡出；激光只指不写，不落墨、不进撤销、不写进 PDF，讲台上指公式、圈重点不再用手指挡字。二、新增 UInk 墨迹交换格式与导入导出：浮动栏新增更多按钮，菜单里导出 UInk 会把整份文档的批注写成 .uink 文本文件（JSON），换电脑或换账号时导入即可按页还原；同页原有墨迹会被替换，PDF 本身不受影响。三、新增误迹查杀（DDB）：一键扫描当前文档所有页，只清掉极小孤立的墨点（点浮动栏按钮时被提升成笔事件留下的那类），正常笔画一律不动，并提示清掉了几处。四、新增智能擦（仿 Inkeys）：橡皮菜单面积擦页签里有开关，擦到一条笔画的大半时直接整笔清除，原来会留下的细碎残段不再出现。五、块级懒加载：离视口两屏以外的页面挂起墨迹绘制，滚回来立即恢复，长文档翻页和滚动更省资源。六、外观更接近 Fluent：浮动栏与弹层圆角统一放大，主栏和文件菜单都加了柔和投影，新增按钮与原有按钮共用同一套选中态与悬停反馈。其余功能与 0.1.22 一致。"
+          gh release create v0.1.24 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" `
+            --title "v0.1.24 UInk 1.1 规范墨迹交换" `
+            --notes "本次更新：把导入导出彻底换成了真正的 UInk 1.1 Beta 公开规范实现。主文件 .uink 不再是我们自编的 JSON，而是规范要求的 MessagePack 对象流：开头是 Header（版本号 11、设备数、工作区数、页数、时间），随后是 Header Extension（登记一个 Display 设备和一个白板工作区），再往后每页一个 Canvas（含 pageGuid、pageIndex、页码、图层号、白色背景与视口），每条笔画一个 Ink 块（inkType、颜色、透明度、纹理、逐点坐标与宽度，荧光笔按规范写成 nib 矩形笔尖 1:8）。笔迹的压感被烘焙进每个点的宽度，首点写绝对坐标、其余写相对位移，坐标精度与规范一致。导出时整份文档每页都会写一个 Canvas，空白页也在，这样在别的软件里打开页码是连续的。读取端按规范做容错：同一个 pageGuid 后出现的整体替代前面的，认不出的块类型直接跳过，遇到 Clear 块清空该页，文件尾部不完整就丢弃最后一个对象并停下，中间损坏则保留已读部分，不会因为一个坏块整份丢失。浮动栏更多菜单里的导出 UInk 和导入 UInk 已改为按字节读写，文件扩展名仍是 .uink，和智绘教 Inkeys、ICC-CE 属于同一套格式，可以互相打开。本版声明写入基础级、读取标准级；图形与图片块暂时只跳过不画，字迹不受影响。其余功能与 0.1.23 一致。"
