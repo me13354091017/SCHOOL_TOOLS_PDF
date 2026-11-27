@@ -17,16 +17,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cleanup temp apply files
+      - name: Apply 0.1.25 patch
         shell: pwsh
         run: |
-          git rm -f .github/workflows/apply-024.yml notes/apply-0.1.24.md 2>$null
-          if ($LASTEXITCODE -eq 0) {
-            git config user.name "school-tools-bot"
-            git config user.email "bot@users.noreply.github.com"
-            git commit -m "chore: remove temp apply files"
-            git push
-          } else { echo "nothing to clean" }
+          curl.exe -fsSL -o patch025.patch "https://aka.doubaocdn.com/s/TFVMQ5IrKQ"
+          $h = (Get-FileHash patch025.patch -Algorithm SHA256).Hash.ToLower()
+          if ($h -ne "b0458202e5fd5ec3c45d3931781771e25062f075202972c97bc124a922712acf") { throw "patch hash mismatch: $h" }
+          git apply --whitespace=nowarn patch025.patch
+          git status --short
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -42,13 +40,19 @@ jobs:
         # CI 里的 choco 包不带 Languages 语言包，用 /DUseEnglishOnly=1 走英文向导（本地编译仍默认中文）
         run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DArch=x64 /DUseEnglishOnly=1 SCHOOL_PDF\installer.iss'
 
-      - name: Create or update release
+      - name: Commit source to main
+        shell: pwsh
+        run: |
+          git config user.name "school-tools-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: 0.1.25 滚动与打开性能优化"
+          if ($LASTEXITCODE -eq 0) { git push }
+
+      - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release view v0.1.24 2>$null
-          if ($LASTEXITCODE -ne 0) {
-            gh release create v0.1.24 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" --title "v0.1.24 UInk 1.1" --notes "UInk 1.1 spec ink exchange"
-          } else {
-            gh release upload v0.1.24 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" --clobber
-          }
+          gh release create v0.1.25 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" `
+            --title "v0.1.25 滚动与打开性能" `
+            --notes "本次是性能专项，功能与 0.1.24 一致。一、滚动与惯性滚动期间，页面与缩略图位图改走线性重采样，停下 260 毫秒才恢复高质量：整页位图动辄 3000 到 4000 像素宽，每帧用高质量重采样是长文档滚动掉帧的主要来源。二、滚出缓冲区的页面，排队中的渲染直接作废，不再白渲染整张约 20MB 的位图、占着并发名额；快速翻过十几页时可见页出图明显更快。三、页面渲染并发改成按 CPU 核数自适应（2 到 3 路），像素旋转与位图构造这些活能并行跑。四、打开文档时，取页尺寸与读墨迹库改成并行执行，几百页课件加大墨迹库能省上百毫秒；所有页尺寸收进一次 PDFium 锁内算完，原来每页各拿一次锁。五、启动时把线程池最小线程数抬到核数以上，打开文档瞬间的取尺寸、读库、渲染首屏不再排队等线程池补线程。六、页面与缩略图的采样质量切换统一由一个交互状态驱动，缩放与滚动互不打断。"
