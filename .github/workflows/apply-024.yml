@@ -18,16 +18,16 @@ jobs:
 
       - name: Download, verify and apply patch
         run: |
-          echo "retry 2"
-          curl -fsSL -o /tmp/p024.patch "https://aka.doubaocdn.com/s/Ukumsyg79b"
-          echo "f87a1b4e402a0da47a07691960c8ac779d6a8fffb275f2973e362bc96af33e0a  /tmp/p024.patch" | sha256sum -c
-          git apply --whitespace=nowarn /tmp/p024.patch
+          set -x
+          curl -fsSL -o /tmp/p024b.patch "https://aka.doubaocdn.com/s/u0FLEtnUoV"
+          echo "2d78081add268824e5d9d3568f432995e7e2b9001402e44b6964c02062ed4d67  /tmp/p024b.patch" | sha256sum -c
+          git apply --whitespace=nowarn /tmp/p024b.patch
+          git status --short
 
       - name: Commit
         run: |
           git config user.name "school-tools-bot"
           git config user.email "bot@users.noreply.github.com"
           git add -A
-          git rm -f .github/workflows/apply-024.yml
           git commit -m "feat: 0.1.24 UInk 1.1 spec ink exchange"
           git push
