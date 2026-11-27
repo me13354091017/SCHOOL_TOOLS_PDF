@@ -1,6 +1,9 @@
+using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Ink;
+using System.Windows.Input;
+using System.Windows.Media;
 using SchoolPdf.Services;
 
 namespace SchoolPdf.Controls;
@@ -10,7 +13,16 @@ namespace SchoolPdf.Controls;
 /// 采样由 StylusPlugIn（笔线程原始包）完成，AppendSamples 内逐点拒绝帧内历史回放点。</summary>
 public class PageInkCanvas : InkCanvas
 {
+    /// <summary>智能擦总开关（墨迹栏橡皮菜单设置；仅面积擦生效）。</summary>
+    public static bool SmartEraseEnabled { get; set; } = true;
+
+    /// <summary>离视口超过几个屏高就挂起绘制（块级懒加载缓冲）。</summary>
+    private const double LazyBufferScreens = 2.0;
+
     private readonly TimePressureDynamicRenderer _renderer;
+    private ScrollViewer? _hostScroller;
+    private bool _suspended;
+    private bool _mutating;
 
     public PageInkCanvas()
     {
@@ -24,27 +36,152 @@ public class PageInkCanvas : InkCanvas
             if (e.StylusDevice is { } device)
                 Controller.AbortStrokeIfPending(device.Id);
         };
-        // 浮动栏防穿透兜底：落在浮动栏矩形内的墨迹（多为点按钮时原地留下的墨点）即时丢弃
+        // 浮动栏防穿透兜底 + 智能擦（同一条 StrokesChanged 通道，按增删形状分派）
         Strokes.StrokesChanged += OnStrokesChanged;
+        // 块级懒加载：离视口足够远的页面挂起绘制（裁剪为空），滚回来立即恢复
+        Loaded += OnLazyLoaded;
+        Unloaded += OnLazyUnloaded;
     }
 
-    private bool _droppingBarStroke;
+    // ══════════ 块级懒加载（页级挂起）══════════
+
+    private void OnLazyLoaded(object sender, RoutedEventArgs e)
+    {
+        if (_hostScroller != null)
+            return;
+        _hostScroller = FindHostScroller(this);
+        if (_hostScroller == null)
+            return;
+        _hostScroller.ScrollChanged += HostScroller_ScrollChanged;
+        _hostScroller.SizeChanged += HostScroller_SizeChanged;
+        UpdateViewportState();
+    }
+
+    private void OnLazyUnloaded(object sender, RoutedEventArgs e)
+    {
+        if (_hostScroller == null)
+            return;
+        _hostScroller.ScrollChanged -= HostScroller_ScrollChanged;
+        _hostScroller.SizeChanged -= HostScroller_SizeChanged;
+        _hostScroller = null;
+        ResetSuspension();
+    }
+
+    private void HostScroller_ScrollChanged(object sender, ScrollChangedEventArgs e) => UpdateViewportState();
+
+    private void HostScroller_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateViewportState();
+
+    private static ScrollViewer? FindHostScroller(DependencyObject start)
+    {
+        var current = start;
+        for (int depth = 0; depth < 12; depth++)
+        {
+            current = VisualTreeHelper.GetParent(current);
+            if (current is null)
+                return null;
+            if (current is ScrollViewer viewer)
+                return viewer;
+        }
+        return null;
+    }
+
+    /// <summary>按自身在滚动视口中的位置决定"挂起/恢复"。挂起用空裁剪实现：元素位置与布局不变，
+    /// 只是整棵墨迹子树不参与绘制（空 Clip = WPF 强裁剪），比 Collapsed 安全（不破坏定位换算）。</summary>
+    private void UpdateViewportState()
+    {
+        if (_hostScroller == null || ActualHeight <= 0)
+            return;
+        double viewport = _hostScroller.ViewportHeight;
+        if (viewport <= 0)
+            return;
+        Point topLeft;
+        try
+        {
+            topLeft = TranslatePoint(new Point(0, 0), _hostScroller);
+        }
+        catch
+        {
+            return;
+        }
+        double top = topLeft.Y;
+        double bottom = top + ActualHeight;
+        bool nearViewport = bottom > -LazyBufferScreens * viewport
+                            && top < (1 + LazyBufferScreens) * viewport;
+        if (nearViewport == !_suspended)
+            return;
+        _suspended = !nearViewport;
+        if (_suspended)
+            Clip = new RectangleGeometry(new Rect(0, 0, 0, 0));
+        else
+            Clip = null;
+    }
+
+    private void ResetSuspension()
+    {
+        _suspended = false;
+        Clip = null;
+    }
+
+    // ══════════ 墨迹变更：浮动栏防穿透 + 智能擦 ══════════
 
     private void OnStrokesChanged(object? sender, StrokeCollectionChangedEventArgs e)
     {
-        if (_droppingBarStroke || e.Added.Count == 0)
+        if (_mutating)
             return;
-        var bar = InkToolBar.Current;
-        if (bar is null || !bar.IsBarInputRegionActive || !bar.IsPointerOverBarBody)
+        if (e.Added.Count == 0 && e.Removed.Count == 0)
             return;
-        foreach (var stroke in e.Added)
+
+        // ① 新墨迹：丢弃整条落在浮动栏矩形内的（多为点按钮时原地留下的墨点）
+        if (e.Added.Count > 0 && e.Removed.Count == 0)
         {
-            if (!bar.IsStrokeFullyInsideBar(stroke, this))
-                continue;
-            _droppingBarStroke = true;
-            try { Strokes.Remove(stroke); }
-            finally { _droppingBarStroke = false; }
+            var bar = InkToolBar.Current;
+            if (bar is null || !bar.IsBarInputRegionActive || !bar.IsPointerOverBarBody)
+                return;
+            foreach (var stroke in e.Added)
+            {
+                if (!bar.IsStrokeFullyInsideBar(stroke, this))
+                    continue;
+                _mutating = true;
+                try { Strokes.Remove(stroke); }
+                finally { _mutating = false; }
+            }
+            return;
         }
+
+        // ② 智能擦：面积擦把一条笔画擦断后，若残段总长只剩一点点，直接整笔清除，不留碎渣
+        if (!SmartEraseEnabled || e.Removed.Count != 1 || e.Added.Count == 0)
+            return;
+        double before = StrokeLength(e.Removed[0]);
+        double after = 0;
+        foreach (var piece in e.Added)
+            after += StrokeLength(piece);
+        bool wipe = before < 10 || after < before * 0.32;
+        if (!wipe)
+            return;
+        _mutating = true;
+        try
+        {
+            foreach (var piece in e.Added)
+                Strokes.Remove(piece);
+        }
+        finally
+        {
+            _mutating = false;
+        }
+    }
+
+    /// <summary>折线长度（按采样点累加，足够判定"擦掉大半"）。</summary>
+    private static double StrokeLength(Stroke stroke)
+    {
+        StylusPointCollection points = stroke.StylusPoints;
+        double length = 0;
+        for (int i = 1; i < points.Count; i++)
+        {
+            double dx = points[i].X - points[i - 1].X;
+            double dy = points[i].Y - points[i - 1].Y;
+            length += Math.Sqrt(dx * dx + dy * dy);
+        }
+        return length;
     }
 
     /// <summary>本页的时间笔锋控制器（由 MainWindow 在加载/卸载与选项变化时驱动）。</summary>

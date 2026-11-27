@@ -5,7 +5,8 @@
              xmlns:ikw="http://schemas.inkore.net/lib/ui/wpf"
              xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
              xmlns:ic="clr-namespace:FluentIcons.Wpf;assembly=FluentIcons.Wpf"
-             xmlns:sys="clr-namespace:System;assembly=mscorlib">
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
+             xmlns:c="clr-namespace:SchoolPdf.Controls">
         <UserControl.Resources>
         <!-- 显式 ResourceDictionary：合并形状图标字典 + 保留本地键 -->
         <ResourceDictionary>
@@ -65,8 +66,11 @@
                     Background="{DynamicResource FloatBarBackground}"
                     BorderBrush="{DynamicResource FloatBarBorderBrush}"
                     BorderThickness="1"
-                    CornerRadius="5"
+                    CornerRadius="8"
                     Visibility="Visible">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="14" Opacity="0.16" ShadowDepth="3" Direction="270" />
+                    </Border.Effect>
                     <ikw:SimpleStackPanel Name="StackPanelFloatingBar" Orientation="Horizontal">
                         <Border
                             x:Name="FloatingBarGrip"
@@ -94,7 +98,7 @@
                             MouseEnter="ToolButton_MouseEnter" MouseLeave="ToolButton_MouseLeave">
                             <Border x:Name="MouseCheckBorder" Width="30" Height="32"
                                 HorizontalAlignment="Center" VerticalAlignment="Center"
-                                CornerRadius="5" Background="Transparent" Opacity="1">
+                                CornerRadius="7" Background="Transparent" Opacity="1">
                                 <Grid>
                                     <Border x:Name="MouseHoverOverlay" Background="Transparent" Visibility="Collapsed" CornerRadius="5" />
                                     <ikw:SimpleStackPanel Name="Mouse_Icon" Width="28" HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent" Orientation="Vertical">
@@ -129,7 +133,7 @@
                             MouseEnter="ToolButton_MouseEnter" MouseLeave="ToolButton_MouseLeave">
                             <Border x:Name="PenCheckBorder" Width="30" Height="32"
                                 HorizontalAlignment="Center" VerticalAlignment="Center"
-                                CornerRadius="5" Background="Transparent" Opacity="1">
+                                CornerRadius="7" Background="Transparent" Opacity="1">
                                 <Grid>
                                     <Border x:Name="PenHoverOverlay" Background="Transparent" Visibility="Collapsed" CornerRadius="5" />
                                     <ikw:SimpleStackPanel
@@ -173,7 +177,7 @@
                                     Background="{DynamicResource FloatBarBackgroundWithoutOpacity}"
                                     BorderBrush="{DynamicResource FloatBarBorderBrush}"
                                     BorderThickness="2"
-                                    CornerRadius="10">
+                                    CornerRadius="14">
                                     <Border.Resources>
                                         <!--  紧凑 Pivot：复用 IUWM 的字号资源键与 TabItemPivot 样式基类（须先于 TabControl 声明，StaticResource 不支持前向引用）  -->
                                         <sys:Double x:Key="PivotHeaderItemFontSize">18</sys:Double>
@@ -683,7 +687,7 @@
                                     Background="{DynamicResource FloatBarBackgroundWithoutOpacity}"
                                     BorderBrush="{DynamicResource FloatBarBorderBrush}"
                                     BorderThickness="2"
-                                    CornerRadius="10">
+                                    CornerRadius="14">
                                     <Border.Resources>
                                         <!--  紧凑 Pivot：与 PenPalette 同款字号资源键 + TabItemPivot 样式基类（须先于 TabControl 声明）  -->
                                         <sys:Double x:Key="PivotHeaderItemFontSize">18</sys:Double>
@@ -751,6 +755,16 @@
                                                             VerticalAlignment="Center" />
                                                         <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource FloatBarForeground}" Text="{Binding Value, ElementName=EraserSizeSlider, Mode=OneWay}" />
                                                     </Grid>
+                                                    <!--  智能擦（仿 Inkeys）：擦到多半就整笔清掉，不留下细碎残段  -->
+                                                    <ikw:SimpleStackPanel HorizontalAlignment="Center" Orientation="Horizontal" VerticalAlignment="Center" Spacing="4">
+                                                        <TextBlock FontSize="14" VerticalAlignment="Center" Foreground="{DynamicResource FloatBarForeground}" Text="智能擦" />
+                                                        <ui:ToggleSwitch x:Name="ToggleSwitchSmartErase"
+                                                            MinWidth="0"
+                                                            IsOn="True"
+                                                            OffContent=""
+                                                            OnContent=""
+                                                            Toggled="ToggleSwitchSmartErase_Toggled" />
+                                                    </ikw:SimpleStackPanel>
                                                 </ikw:SimpleStackPanel>
                                             </TabItem>
                                             <TabItem Header="墨迹擦">
@@ -821,7 +835,7 @@
                                 MouseEnter="ToolButton_MouseEnter" MouseLeave="ToolButton_MouseLeave">
                                 <Border x:Name="EraserCheckBorder" Width="30" Height="32"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"
-                                    CornerRadius="5" Background="Transparent" Opacity="1">
+                                    CornerRadius="7" Background="Transparent" Opacity="1">
                                     <Grid>
                                         <Border x:Name="EraserHoverOverlay" Background="Transparent" Visibility="Collapsed" CornerRadius="5" />
                                         <ikw:SimpleStackPanel Name="Eraser_Icon" HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent" Orientation="Vertical">
@@ -857,7 +871,7 @@
                                 MouseEnter="ToolButton_MouseEnter" MouseLeave="ToolButton_MouseLeave">
                                 <Border x:Name="SelectCheckBorder" Width="30" Height="32"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"
-                                    CornerRadius="5" Background="Transparent" Opacity="1">
+                                    CornerRadius="7" Background="Transparent" Opacity="1">
                                     <Grid>
                                         <Border x:Name="SelectHoverOverlay" Background="Transparent" Visibility="Collapsed" CornerRadius="5" />
                                         <ikw:SimpleStackPanel Name="Select_Icon" HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent" Orientation="Vertical">
@@ -899,7 +913,7 @@
                                 MouseEnter="ToolButton_MouseEnter" MouseLeave="ToolButton_MouseLeave">
                                 <Border x:Name="ShapeCheckBorder" Width="30" Height="32"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"
-                                    CornerRadius="5" Background="Transparent" Opacity="1">
+                                    CornerRadius="7" Background="Transparent" Opacity="1">
                                     <Grid>
                                         <Border x:Name="ShapeHoverOverlay" Background="Transparent" Visibility="Collapsed" CornerRadius="5" />
                                         <ikw:SimpleStackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent" Orientation="Vertical">
@@ -935,7 +949,7 @@
                                     Background="{DynamicResource FloatBarBackgroundWithoutOpacity}"
                                     BorderBrush="{DynamicResource FloatBarBorderBrush}"
                                     BorderThickness="2"
-                                    CornerRadius="10">
+                                    CornerRadius="14">
                                     <ikw:SimpleStackPanel Orientation="Vertical">
                                         <Grid Margin="14,8,10,2">
                                             <TextBlock x:Name="ShapeHintTextBlock"
@@ -1073,6 +1087,132 @@
                                     </ikw:SimpleStackPanel>
                                 </Border>
                             </Popup>
+
+                            <!--  激光笔（只出光不落墨；点按钮切换，激光模式下页面照常滚动）  -->
+                            <Button x:Name="BtnLaser"
+                                Width="30"
+                                Height="32"
+                                Margin="2,0,0,0"
+                                Padding="0"
+                                BorderThickness="0"
+                                Click="LaserIcon_Click"
+                                MouseEnter="ToolButton_MouseEnter" MouseLeave="ToolButton_MouseLeave">
+                                <Border x:Name="LaserCheckBorder" Width="30" Height="32"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    CornerRadius="7" Background="Transparent" Opacity="1">
+                                    <Grid>
+                                        <Border x:Name="LaserHoverOverlay" Background="Transparent" Visibility="Collapsed" CornerRadius="7" />
+                                        <ikw:SimpleStackPanel Name="Laser_Icon" Width="30" HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent" Orientation="Vertical">
+                                            <Grid Width="30" Height="22">
+                                                <Ellipse Width="11" Height="11" HorizontalAlignment="Center" VerticalAlignment="Center" Fill="#FF2E40" />
+                                                <Ellipse Width="4" Height="4" HorizontalAlignment="Center" VerticalAlignment="Center" Fill="#FFFFFF" />
+                                            </Grid>
+                                            <TextBlock
+                                                Margin="1,-1,0,0"
+                                                FontSize="8"
+                                                Foreground="{DynamicResource FloatBarIconForeground}"
+                                                Text="激光"
+                                                TextAlignment="Center"
+                                                Visibility="{Binding ElementName=FloatBarSelectIconTextBlock, Path=Visibility}" />
+                                        </ikw:SimpleStackPanel>
+                                        <Border x:Name="LaserAccentPill" Width="13" Height="3" CornerRadius="1.5"
+                                            HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,1"
+                                            Background="{DynamicResource {x:Static ui:ThemeKeys.AccentFillColorDefaultBrushKey}}" Visibility="Collapsed" />
+                                    </Grid>
+                                </Border>
+                            </Button>
+                            <!--  文件菜单（UInk 导入导出 + 误迹查杀）：白卡三行，点外自动收起  -->
+                            <Popup x:Name="MorePalette"
+                                Placement="Custom"
+                                AllowsTransparency="True"
+                                StaysOpen="True"
+                                IsOpen="False"
+                                PopupAnimation="None">
+                                <Border x:Name="MorePaletteRoot"
+                                    MinWidth="208"
+                                    Background="{DynamicResource FloatBarBackgroundWithoutOpacity}"
+                                    BorderBrush="{DynamicResource FloatBarBorderBrush}"
+                                    BorderThickness="2"
+                                    CornerRadius="14">
+                                    <Border.Effect>
+                                        <DropShadowEffect BlurRadius="22" Opacity="0.22" ShadowDepth="7" Direction="270" />
+                                    </Border.Effect>
+                                    <ikw:SimpleStackPanel Margin="6" Spacing="2">
+                                        <Border x:Name="MoreRowExport"
+                                            Padding="10,9"
+                                            Background="Transparent"
+                                            CornerRadius="8"
+                                            Cursor="Hand"
+                                            MouseLeftButtonUp="MoreRowExport_MouseLeftButtonUp"
+                                            MouseEnter="MoreRow_MouseEnter"
+                                            MouseLeave="MoreRow_MouseLeave">
+                                            <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Width="16" FontSize="14" VerticalAlignment="Center" Text="↓" Foreground="{DynamicResource FloatBarForeground}" />
+                                                <TextBlock FontSize="14" VerticalAlignment="Center" Text="导出 UInk 墨迹" Foreground="{DynamicResource FloatBarForeground}" />
+                                            </ikw:SimpleStackPanel>
+                                        </Border>
+                                        <Border x:Name="MoreRowImport"
+                                            Padding="10,9"
+                                            Background="Transparent"
+                                            CornerRadius="8"
+                                            Cursor="Hand"
+                                            MouseLeftButtonUp="MoreRowImport_MouseLeftButtonUp"
+                                            MouseEnter="MoreRow_MouseEnter"
+                                            MouseLeave="MoreRow_MouseLeave">
+                                            <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Width="16" FontSize="14" VerticalAlignment="Center" Text="↑" Foreground="{DynamicResource FloatBarForeground}" />
+                                                <TextBlock FontSize="14" VerticalAlignment="Center" Text="导入 UInk 墨迹" Foreground="{DynamicResource FloatBarForeground}" />
+                                            </ikw:SimpleStackPanel>
+                                        </Border>
+                                        <Border x:Name="MoreRowClean"
+                                            Padding="10,9"
+                                            Background="Transparent"
+                                            CornerRadius="8"
+                                            Cursor="Hand"
+                                            MouseLeftButtonUp="MoreRowClean_MouseLeftButtonUp"
+                                            MouseEnter="MoreRow_MouseEnter"
+                                            MouseLeave="MoreRow_MouseLeave">
+                                            <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Width="16" FontSize="14" VerticalAlignment="Center" Text="✦" Foreground="{DynamicResource FloatBarForeground}" />
+                                                <TextBlock FontSize="14" VerticalAlignment="Center" Text="误迹查杀（DDB）" Foreground="{DynamicResource FloatBarForeground}" />
+                                            </ikw:SimpleStackPanel>
+                                        </Border>
+                                        <Border Padding="10,6,10,8">
+                                            <TextBlock FontSize="11" TextWrapping="Wrap" MaxWidth="190" Foreground="{DynamicResource FloatBarForeground}" Opacity="0.62"
+                                                Text="UInk 是本应用自己的墨迹交换格式（.uink，JSON 文本），换机器搬批注用它。误迹查杀只删极小孤立墨点。" />
+                                        </Border>
+                                    </ikw:SimpleStackPanel>
+                                </Border>
+                            </Popup>
+                            <Button x:Name="BtnMore"
+                                Width="30"
+                                Height="32"
+                                Margin="2,0,0,0"
+                                Padding="0"
+                                BorderThickness="0"
+                                Click="MoreIcon_Click"
+                                MouseEnter="ToolButton_MouseEnter" MouseLeave="ToolButton_MouseLeave">
+                                <Border x:Name="MoreCheckBorder" Width="30" Height="32"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    CornerRadius="7" Background="Transparent" Opacity="1">
+                                    <Grid>
+                                        <Border x:Name="MoreHoverOverlay" Background="Transparent" Visibility="Collapsed" CornerRadius="7" />
+                                        <ikw:SimpleStackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent" Orientation="Vertical">
+                                            <TextBlock Width="30" Height="22" Margin="0,2,0,-2" FontSize="16" TextAlignment="Center" Text="⋯" Foreground="{DynamicResource FloatBarIconForeground}" />
+                                            <TextBlock
+                                                Margin="1,-1,0,0"
+                                                FontSize="8"
+                                                Foreground="{DynamicResource FloatBarIconForeground}"
+                                                Text="更多"
+                                                TextAlignment="Center"
+                                                Visibility="{Binding ElementName=FloatBarSelectIconTextBlock, Path=Visibility}" />
+                                        </ikw:SimpleStackPanel>
+                                        <Border x:Name="MoreAccentPill" Width="13" Height="3" CornerRadius="1.5"
+                                            HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,1"
+                                            Background="{DynamicResource {x:Static ui:ThemeKeys.AccentFillColorDefaultBrushKey}}" Visibility="Collapsed" />
+                                    </Grid>
+                                </Border>
+                            </Button>
                             <Button
                                 Width="30"
                                 Height="32"
@@ -1127,6 +1267,9 @@
     </Border>
     </ikw:SimpleStackPanel>
 </Viewbox>
+
+        <!-- 激光笔轨迹层：整窗铺满、不拦输入（IsHitTestVisible=False），只画发光轨迹 -->
+        <c:LaserPointerOverlay x:Name="LaserLayer" Visibility="Visible" />
 
         <!-- 吸管取色层：整窗铺满的透明十字层，移动实时预览、左键确认、右键取消 -->
         <Grid

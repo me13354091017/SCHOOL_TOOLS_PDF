@@ -38,6 +38,7 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
     {
         InitializeComponent();
         Current = this;
+        InitExtras();   // 文件菜单（UInk/查杀）定位与回调（Extras 分部）
         Unloaded += (_, _) =>
         {
             if (ReferenceEquals(Current, this))
@@ -97,6 +98,8 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
             {
                 InkToolMode.Pen => "pen",
                 InkToolMode.Eraser => "eraser",
+                InkToolMode.Laser => "laser",
+                InkToolMode.Select => "select",
                 _ => "mouse"
             });
             ApplyShapeHintColor();   // 图形面板提示文字：浅 #666666 / 深 #AAAAAA
@@ -140,6 +143,8 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
                                 {
                                     InkToolMode.Pen => "pen",
                                     InkToolMode.Eraser => "eraser",
+                                    InkToolMode.Laser => "laser",
+                                    InkToolMode.Select => "select",
                                     _ => "mouse"
                                 });
                         };
@@ -157,6 +162,7 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
                 }
                 ApplyThemeToPalette();   // 色块 + 当前色勾标一并恢复
                 UpdatePenPreview();
+                InitLaserHost();   // 激光层状态 + 窗口级取点（只挂一次）
                 UpdateBoardToolState("mouse");   // 首次加载高亮"鼠标"（默认即浏览模式，ICA 未做但需要）
             };
     }
@@ -382,6 +388,9 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
         // 两个页签（硬笔/软笔）的墨迹纠正开关同步到 VM 实际值（全局共享；荧光笔无此项）
         ToggleSwitchEnableInkToShapeHard.IsOn = vm.InkTool.IsInkToShapeEnabled;
         ToggleSwitchEnableInkToShapeSoft.IsOn = vm.InkTool.IsInkToShapeEnabled;
+        // 智能擦开关回填（页面画布静态开关同时同步）
+        ToggleSwitchSmartErase.IsOn = vm.InkTool.IsSmartEraser;
+        PageInkCanvas.SmartEraseEnabled = vm.InkTool.IsSmartEraser;
         ApplyThemeToPalette();   // 亮暗系色板/图标/勾标按当前记忆重绘
     }
 
@@ -502,6 +511,14 @@ public void ApplyFloatBarText(bool show)
         SelectCheckBorder.Opacity = 1;
         SelectCheckBorder.Resources.Remove("FloatBarIconForeground");
         SelectAccentPill.Visibility = Visibility.Collapsed;
+        LaserCheckBorder.Background = Brushes.Transparent;
+        LaserCheckBorder.Opacity = 1;
+        LaserCheckBorder.Resources.Remove("FloatBarIconForeground");
+        LaserAccentPill.Visibility = Visibility.Collapsed;
+        MoreCheckBorder.Background = Brushes.Transparent;
+        MoreCheckBorder.Opacity = 1;
+        MoreCheckBorder.Resources.Remove("FloatBarIconForeground");
+        MoreAccentPill.Visibility = Visibility.Collapsed;
         if (mode != "pen" && mode != "color")
             PopupFlyAnimator.FlyOut(PenPalette, PenPaletteRoot);
 
@@ -576,6 +593,19 @@ public void ApplyFloatBarText(bool show)
                     SelectCheckBorder.Resources["FloatBarIconForeground"] = invertedIconBrush;
                 SelectAccentPill.Visibility = pillVisible;
                 break;
+            case "laser":
+                LaserCheckBorder.Background = checkBrush;
+                LaserCheckBorder.Opacity = 0.99;
+                if (invertedIconBrush != null)
+                    LaserCheckBorder.Resources["FloatBarIconForeground"] = invertedIconBrush;
+                LaserAccentPill.Visibility = pillVisible;
+                break;
+            case "more":
+                MoreCheckBorder.Background = checkBrush;
+                MoreCheckBorder.Opacity = 0.99;
+                if (invertedIconBrush != null)
+                    MoreCheckBorder.Resources["FloatBarIconForeground"] = invertedIconBrush;
+                break;
         }
     }
 
@@ -593,6 +623,8 @@ public void ApplyFloatBarText(bool show)
             : checkBorder == EraserCheckBorder ? EraserHoverOverlay
             : checkBorder == ShapeCheckBorder ? ShapeHoverOverlay
             : checkBorder == SelectCheckBorder ? SelectHoverOverlay
+            : checkBorder == LaserCheckBorder ? LaserHoverOverlay
+            : checkBorder == MoreCheckBorder ? MoreHoverOverlay
             : null;
         if (overlay == null) return;
         var m = _lastMode;
@@ -600,7 +632,9 @@ public void ApplyFloatBarText(bool show)
                                       (checkBorder == PenCheckBorder && (m == "pen" || m == "color")) ||
                                       (checkBorder == EraserCheckBorder && m == "eraser") ||
                                       (checkBorder == ShapeCheckBorder && m == "shape") ||
-                                      (checkBorder == SelectCheckBorder && m == "select"));
+                                      (checkBorder == SelectCheckBorder && m == "select") ||
+                                      (checkBorder == LaserCheckBorder && m == "laser") ||
+                                      (checkBorder == MoreCheckBorder && m == "more"));
         if (hovered && selected)
         {
             overlay.Background = _hoverOverlayBrush;
@@ -680,6 +714,8 @@ public void ApplyFloatBarText(bool show)
         PopupFlyAnimator.FlyOut(PenPalette, PenPaletteRoot);
         PopupFlyAnimator.FlyOut(EraserPalette, EraserPaletteRoot);
         PopupFlyAnimator.FlyOut(ShapePalette, BorderDrawShape);
+        if (MorePalette is { IsOpen: true })
+            PopupFlyAnimator.FlyOut(MorePalette, MorePaletteRoot);
     }
 
     /// <summary>宿主窗口外点关闭挂接：PreviewMouseDown + handledEventsToo 覆盖一切点击（含已被处理的）。

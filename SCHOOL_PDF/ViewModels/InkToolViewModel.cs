@@ -9,13 +9,14 @@ using SchoolPdf.Models;
 
 namespace SchoolPdf.ViewModels;
 
-/// <summary>墨迹工具模式：None=浏览/滚动，Pen=批注书写，Eraser=面积擦，Select=套索选择（ICA"选择"）。</summary>
+/// <summary>墨迹工具模式：None=浏览/滚动，Pen=批注书写，Eraser=面积擦，Select=套索选择（ICA"选择"），Laser=激光笔（只出光不落墨）。</summary>
 public enum InkToolMode
 {
     None,
     Pen,
     Eraser,
-    Select
+    Select,
+    Laser
 }
 
 /// <summary>墨迹类型（墨迹菜单页签）：Hard=硬笔（关压感），Soft=软笔（开压感），Highlighter=荧光笔。</summary>
@@ -47,8 +48,8 @@ public sealed class InkToolViewModel : ViewModelBase
         }
     }
 
-    /// <summary>是否处于墨迹模式（页面 InkCanvas 参与命中测试）。</summary>
-    public bool IsInkMode => ActiveTool != InkToolMode.None;
+    /// <summary>是否处于墨迹模式（页面 InkCanvas 参与命中测试）。激光笔不拦页面，滚动照常。</summary>
+    public bool IsInkMode => ActiveTool is InkToolMode.Pen or InkToolMode.Eraser or InkToolMode.Select;
 
     private int _shapeDrawMode;
 
@@ -111,6 +112,32 @@ public sealed class InkToolViewModel : ViewModelBase
 
     /// <summary>是否强制钢笔光标（仅批注 Ink 模式且开启显示时才 ForceCursor；其余模式保持 WPF 自动光标）。</summary>
     public bool ForceCursor => ShowPenCursor && ActiveTool == InkToolMode.Pen;
+
+    private bool _isSmartEraser = true;
+
+    /// <summary>智能擦（仿 Inkeys）：面积擦时若一条笔画被擦掉大半，直接整笔清除，避免擦一半留残段。</summary>
+    public bool IsSmartEraser
+    {
+        get => _isSmartEraser;
+        set
+        {
+            if (SetField(ref _isSmartEraser, value))
+                SchoolPdf.Controls.PageInkCanvas.SmartEraseEnabled = value;
+        }
+    }
+
+    private bool _isLaserOn;
+
+    /// <summary>激光笔是否激活（只做视觉轨迹，不落墨、不拦输入）。</summary>
+    public bool IsLaserOn
+    {
+        get => _isLaserOn;
+        private set
+        {
+            if (SetField(ref _isLaserOn, value))
+                OnPropertyChanged(nameof(ForceCursor));
+        }
+    }
 
     private bool _isStrokeEraser;
 
@@ -651,6 +678,7 @@ public sealed class InkToolViewModel : ViewModelBase
     public RelayCommand SetNoneCommand { get; }
     public RelayCommand SetPenCommand { get; }
     public RelayCommand SetEraserCommand { get; }
+    public RelayCommand SetLaserCommand { get; }
     public RelayCommand UndoCommand { get; }
     public RelayCommand RedoCommand { get; }
 
@@ -659,6 +687,7 @@ public sealed class InkToolViewModel : ViewModelBase
         SetNoneCommand = new RelayCommand(() => SetActiveTool(InkToolMode.None));
         SetPenCommand = new RelayCommand(() => SetActiveTool(InkToolMode.Pen));
         SetEraserCommand = new RelayCommand(() => SetActiveTool(InkToolMode.Eraser));
+        SetLaserCommand = new RelayCommand(() => SetActiveTool(InkToolMode.Laser));
         UndoCommand = new RelayCommand(Undo);   // 可执行态由 TimeMachine 状态事件驱动（对齐画板 BoardUndo.IsEnabled）
         RedoCommand = new RelayCommand(Redo, () => _canRedo);
         TimeMachine.OnUndoStateChanged += b =>
@@ -677,6 +706,7 @@ public sealed class InkToolViewModel : ViewModelBase
     {
         ShapeDrawMode = 0;   // ICA 语义：切工具即退出形状模式（几何按钮处理器随后再设回）
         ActiveTool = mode;
+        IsLaserOn = mode == InkToolMode.Laser;
     }
 
     // ══════════ 全局撤销（直接复用画板 TimeMachine 引擎，ICA 原版）══════════
