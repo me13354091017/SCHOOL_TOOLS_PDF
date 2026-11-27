@@ -378,7 +378,7 @@
                                                            Width="{Binding Width}"
                                                            Height="{Binding Height}"
                                                            Stretch="None"
-                                                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                                                           RenderOptions.BitmapScalingMode="{Binding DataContext.IsInteracting, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource ZoomScalingMode}}"/>
                                                 </Border>
                                                 <Border CornerRadius="6">
                                                     <Border.Style>
@@ -450,7 +450,7 @@
                                                    Width="{Binding Width}"
                                                    Height="{Binding Height}"
                                                    Stretch="None"
-                                                   RenderOptions.BitmapScalingMode="{Binding DataContext.IsZooming, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource ZoomScalingMode}}"/>
+                                                   RenderOptions.BitmapScalingMode="{Binding DataContext.IsInteracting, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource ZoomScalingMode}}"/>
                                             <Grid Width="{Binding ContentWidth}" Height="{Binding ContentHeight}"
                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
                                                   RenderTransformOrigin="0.5,0.5">

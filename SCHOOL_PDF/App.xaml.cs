@@ -32,6 +32,15 @@ public partial class App : Application
         // 触摸屏：设置界面里的滚动容器开启手指平移（WPF 默认只能拖滚动条）。
         RegisterSettingsTouchPanning();
 
+        // 线程池最小线程数抬到核数以上：打开文档瞬间要同时干「取页尺寸 / 读墨迹库 / 渲染首屏」，
+        // 线程池冷启动默认只给 1~2 个线程、每秒才补一个，排队会让打开慢上半秒。
+        try
+        {
+            int cores = Environment.ProcessorCount;
+            ThreadPool.SetMinThreads(Math.Max(8, cores), Math.Max(8, cores));
+        }
+        catch { /* 设置失败只是没享受到，不影响启动 */ }
+
         // 启动后台预热：提前加载 pdfium / sqlite 原生库（首次打开文档、首次读写墨迹库少等一截）。
         StartupPrewarm.Run();
 

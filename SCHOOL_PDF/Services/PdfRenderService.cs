@@ -53,7 +53,11 @@ public sealed class PdfRenderService : IDisposable
     private readonly Dictionary<int, (double W, double H)> _pageSizeCache = new(); // 页原生尺寸缓存（省重复 LoadPage）
     private readonly object _thumbCacheLock = new();          // 后台缩略图渲染与 UI 清理共用
     private readonly object _baseCacheLock = new();           // base 缓存改由后台线程渲染，读/写/LRU 全部加锁
-    private readonly SemaphoreSlim _pageRenderSem = new(2, 2); // 页面渲染并发上限（限制 90MB 级位图的并发内存峰值）
+    // 页面渲染并发：按核数自适应（2~3 路）。渲染本身受 PdfiumLock 串行化，但排队、位图构造、
+    // 像素旋转都在名额外并行，8 核机器给它 3 个名额比死写 2 个更快出图。
+    private static readonly int PageRenderConcurrency =
+        Math.Clamp(Environment.ProcessorCount / 2, 2, 3);
+    private readonly SemaphoreSlim _pageRenderSem = new(PageRenderConcurrency, PageRenderConcurrency);
 
     /// <summary>缩略图优先级队列：可见区（当前滑动区域）先于缓冲区，缓冲区按到可见区距离由近及远。
     /// 替代原信号量 FIFO——快速滚动时过期请求不再挡在新可见区域前面。</summary>
@@ -263,6 +267,38 @@ public sealed class PdfRenderService : IDisposable
             int renderWidth = Math.Max(1, targetWidth);
             int renderHeight = Math.Max(1, (int)Math.Round(h / w * renderWidth));
             return new PageSize(renderWidth, renderHeight);
+        }
+    }
+
+    /// <summary>一次持锁批量取所有页的两种槽位尺寸（页面宽 / 缩略图宽）。
+    /// 原打开流程分两圈、每页各拿一次 PdfiumLock；几百页文档光锁开销就是上千次。
+    /// 尺寸走 FPDF_GetPageSizeByIndexF（不构造页面对象），这里只是把它收进一次锁内。</summary>
+    public (PageSize[] PageSizes, PageSize[] ThumbSizes) GetPageSizes(int targetWidth, int thumbWidth)
+    {
+        lock (PdfiumInterop.PdfiumLock)
+        {
+            var doc = _doc;
+            if (doc == IntPtr.Zero)
+                throw new InvalidOperationException("文档未打开");
+            int count = Math.Max(0, _pageCount);
+            var pages = new PageSize[count];
+            var thumbs = new PageSize[count];
+            int pw = Math.Max(1, targetWidth);
+            int tw = Math.Max(1, thumbWidth);
+            for (int i = 0; i < count; i++)
+            {
+                var (w, h) = GetPageSizeCachedLocked(doc, i);
+                if (w <= 0 || h <= 0)
+                {
+                    pages[i] = new PageSize(pw, pw);
+                    thumbs[i] = new PageSize(tw, tw);
+                    continue;
+                }
+                double ratio = h / w;
+                pages[i] = new PageSize(pw, Math.Max(1, (int)Math.Round(ratio * pw)));
+                thumbs[i] = new PageSize(tw, Math.Max(1, (int)Math.Round(ratio * tw)));
+            }
+            return (pages, thumbs);
         }
     }
 
