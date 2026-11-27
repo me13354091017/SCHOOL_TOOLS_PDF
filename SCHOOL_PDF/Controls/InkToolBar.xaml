@@ -13,6 +13,7 @@
                 <!-- 形状面板图标（DrawShapeImageSource.*）：与画板同字典 -->
                 <ResourceDictionary Source="pack://application:,,,/Board/Resources/DrawShapeImageDictionary.xaml" />
             </ResourceDictionary.MergedDictionaries>
+            <BooleanToVisibilityConverter x:Key="PaletteBoolToVisibility" />
             <ui:ElementTheme x:Key="FloatTheme">Light</ui:ElementTheme>
             <ui:ElementTheme x:Key="BoardTheme">Light</ui:ElementTheme>
             <!-- FloatBar*/BoardBar* 画刷已迁至 App 级 Theme/Light.xaml 与 Theme/Dark.xaml（ThemeService 切换），此处不再本地定义 -->
@@ -67,6 +68,23 @@
                     CornerRadius="5"
                     Visibility="Visible">
                     <ikw:SimpleStackPanel Name="StackPanelFloatingBar" Orientation="Horizontal">
+                        <Border
+                            x:Name="FloatingBarGrip"
+                            Width="14"
+                            Height="32"
+                            Margin="2,0,0,0"
+                            Background="Transparent"
+                            Cursor="SizeAll"
+                            MouseLeftButtonDown="FloatingBarGrip_MouseLeftButtonDown"
+                            MouseLeftButtonUp="FloatingBarGrip_MouseLeftButtonUp"
+                            MouseMove="FloatingBarGrip_MouseMove"
+                            ToolTip="按住拖动可移动墨迹栏">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Ellipse Width="2.5" Height="2.5" Margin="0,1.5" Fill="{DynamicResource FloatBarForeground}" Opacity="0.45" />
+                                <Ellipse Width="2.5" Height="2.5" Margin="0,1.5" Fill="{DynamicResource FloatBarForeground}" Opacity="0.45" />
+                                <Ellipse Width="2.5" Height="2.5" Margin="0,1.5" Fill="{DynamicResource FloatBarForeground}" Opacity="0.45" />
+                            </StackPanel>
+                        </Border>
                         <Button x:Name="BtnMouse"
                             Width="30"
                             Height="32"
@@ -208,196 +226,120 @@
                                                         VerticalAlignment="Center" />
                                                     <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource FloatBarForeground}" Text="{Binding Value, ElementName=InkWidthSliderHard, Mode=OneWay, StringFormat={}{0:0.#}}" />
                                                 </Grid>
-                                                <!-- 行3：9 色调色盘 + 亮/暗系切换（沿用原版色块样式） -->
-                                                <Controls:UniformGrid Rows="2" Columns="5" HorizontalAlignment="Center">
-                                                        <Border
-                                                            Width="50"
-                                                            Height="50"
-                                                            Margin="4"
-                                                            Background="Transparent"
-                                                            BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                                                            BorderThickness="1.5"
-                                                            CornerRadius="100"
-                                                            MouseUp="ColorThemeSwitch_MouseUp">
-                                                            <Grid Margin="5">
-                                                                <ui:FontIcon x:Name="ColorThemeSwitchIconHard"
-                                                                    Width="26"
-                                                                    Height="26"
-                                                                    VerticalAlignment="Top"
-                                                                    FontFamily="{StaticResource FluentIconFontFamily}"
-                                                                    Foreground="{DynamicResource FloatBarForeground}"
-                                                                    Glyph="&#xe706;" />
-                                                                <TextBlock x:Name="ColorThemeSwitchTextBlockHard"
-                                                                    HorizontalAlignment="Center"
-                                                                    VerticalAlignment="Bottom"
-                                                                    FontSize="13"
-                                                                    Foreground="{DynamicResource FloatBarForeground}"
-                                                                    Text="亮系" />
-                                                            </Grid>
-                                                        </Border>
-                                                        <Border x:Name="BorderPenColorBlackHard"
-                                                            Width="50"
-                                                            Height="50"
-                                                            Margin="4"
-                                                            Background="Black"
-                                                            BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                                                            BorderThickness="1.5"
-                                                            CornerRadius="100"
-                                                            MouseUp="BtnColorBlack_Click">
-                                                            <Viewbox x:Name="ViewboxBtnColorBlackHardContent" Margin="8" Visibility="Collapsed">
-                                                                <Image
-                                                                    Width="24"
-                                                                    Height="24"
-                                                                    VerticalAlignment="Top"
-                                                                    RenderOptions.BitmapScalingMode="HighQuality"
-                                                                    Source="/Resources/Icons-png/checked-white.png" />
-                                                            </Viewbox>
-                                                        </Border>
-                                                        <Border x:Name="BorderPenColorWhiteHard"
-                                                            Width="50"
-                                                            Height="50"
-                                                            Margin="4"
-                                                            Background="White"
-                                                            BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                                                            BorderThickness="1.5"
-                                                            CornerRadius="100"
-                                                            MouseUp="BtnColorWhite_Click">
-                                                            <Viewbox x:Name="ViewboxBtnColorWhiteHardContent" Margin="8" Visibility="Collapsed">
-                                                                <Image
-                                                                    Width="24"
-                                                                    Height="24"
-                                                                    VerticalAlignment="Top"
-                                                                    RenderOptions.BitmapScalingMode="HighQuality"
-                                                                    Source="/Resources/Icons-png/checked-black.png" />
-                                                            </Viewbox>
-                                                        </Border>
-                                                        <Border x:Name="BorderPenColorRedHard"
-                                                            Width="50"
-                                                            Height="50"
-                                                            Margin="4"
-                                                            Background="#dc2626"
-                                                            BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                                                            BorderThickness="1.5"
-                                                            CornerRadius="100"
-                                                            MouseUp="BtnColorRed_Click">
-                                                            <Viewbox x:Name="ViewboxBtnColorRedHardContent" Margin="8" Visibility="Collapsed">
-                                                                <Image
-                                                                    Width="24"
-                                                                    Height="24"
-                                                                    VerticalAlignment="Top"
-                                                                    RenderOptions.BitmapScalingMode="HighQuality"
-                                                                    Source="/Resources/Icons-png/checked-white.png" />
-                                                            </Viewbox>
-                                                        </Border>
-                                                        <Border x:Name="BorderPenColorPinkHard"
-                                                            Width="50"
-                                                            Height="50"
-                                                            Margin="4"
-                                                            Background="#c72ec7"
-                                                            BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                                                            BorderThickness="1.5"
-                                                            CornerRadius="100"
-                                                            MouseUp="BtnColorPink_Click">
-                                                            <Viewbox x:Name="ViewboxBtnColorPinkHardContent" Margin="8" Visibility="Collapsed">
-                                                                <Image
-                                                                    Width="24"
-                                                                    Height="24"
-                                                                    VerticalAlignment="Top"
-                                                                    RenderOptions.BitmapScalingMode="HighQuality"
-                                                                    Source="/Resources/Icons-png/checked-white.png" />
-                                                            </Viewbox>
-                                                        </Border>
-                                                        <Border x:Name="BorderPenColorOrangeHard"
-                                                            Width="50"
-                                                            Height="50"
-                                                            Margin="4"
-                                                            Background="#ea580c"
-                                                            BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                                                            BorderThickness="1.5"
-                                                            CornerRadius="100"
-                                                            MouseUp="BtnColorOrange_Click">
-                                                            <Viewbox x:Name="ViewboxBtnColorOrangeHardContent" Margin="8" Visibility="Collapsed">
-                                                                <Image
-                                                                    Width="24"
-                                                                    Height="24"
-                                                                    VerticalAlignment="Top"
-                                                                    RenderOptions.BitmapScalingMode="HighQuality"
-                                                                    Source="/Resources/Icons-png/checked-white.png" />
-                                                            </Viewbox>
-                                                        </Border>
-                                                        <Border x:Name="BorderPenColorYellowHard"
-                                                            Width="50"
-                                                            Height="50"
-                                                            Margin="4"
-                                                            Background="#eab308"
-                                                            BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                                                            BorderThickness="1.5"
-                                                            CornerRadius="100"
-                                                            MouseUp="BtnColorYellow_Click">
-                                                            <Viewbox x:Name="ViewboxBtnColorYellowHardContent" Margin="8" Visibility="Collapsed">
-                                                                <Image
-                                                                    Width="24"
-                                                                    Height="24"
-                                                                    VerticalAlignment="Top"
-                                                                    RenderOptions.BitmapScalingMode="HighQuality"
-                                                                    Source="/Resources/Icons-png/checked-white.png" />
-                                                            </Viewbox>
-                                                        </Border>
-                                                        <Border x:Name="BorderPenColorGreenHard"
-                                                            Width="50"
-                                                            Height="50"
-                                                            Margin="4"
-                                                            Background="#16a34a"
-                                                            BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                                                            BorderThickness="1.5"
-                                                            CornerRadius="100"
-                                                            MouseUp="BtnColorGreen_Click">
-                                                            <Viewbox x:Name="ViewboxBtnColorGreenHardContent" Margin="8" Visibility="Collapsed">
-                                                                <Image
-                                                                    Width="24"
-                                                                    Height="24"
-                                                                    VerticalAlignment="Top"
-                                                                    RenderOptions.BitmapScalingMode="HighQuality"
-                                                                    Source="/Resources/Icons-png/checked-white.png" />
-                                                            </Viewbox>
-                                                        </Border>
-                                                        <Border x:Name="BorderPenColorTealHard"
-                                                            Width="50"
-                                                            Height="50"
-                                                            Margin="4"
-                                                            Background="#0d9488"
-                                                            BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                                                            BorderThickness="1.5"
-                                                            CornerRadius="100"
-                                                            MouseUp="BtnColorTeal_Click">
-                                                            <Viewbox x:Name="ViewboxBtnColorTealHardContent" Margin="8" Visibility="Collapsed">
-                                                                <Image
-                                                                    Width="24"
-                                                                    Height="24"
-                                                                    VerticalAlignment="Top"
-                                                                    RenderOptions.BitmapScalingMode="HighQuality"
-                                                                    Source="/Resources/Icons-png/checked-white.png" />
-                                                            </Viewbox>
-                                                        </Border>
-                                                        <Border x:Name="BorderPenColorBlueHard"
-                                                            Width="50"
-                                                            Height="50"
-                                                            Margin="4"
-                                                            Background="#2563eb"
-                                                            BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                                                            BorderThickness="1.5"
-                                                            CornerRadius="100"
-                                                            MouseUp="BtnColorBlue_Click">
-                                                            <Viewbox x:Name="ViewboxBtnColorBlueHardContent" Margin="8" Visibility="Collapsed">
-                                                                <Image
-                                                                    Width="24"
-                                                                    Height="24"
-                                                                    VerticalAlignment="Top"
-                                                                    RenderOptions.BitmapScalingMode="HighQuality"
-                                                                    Source="/Resources/Icons-png/checked-white.png" />
-                                                            </Viewbox>
-                                                        </Border>
-                                                    </Controls:UniformGrid>
+                                                                                                                                                <!-- 行2.5：粗细快捷档（细 1 / 中 5 / 粗 12）+ 墨迹预览（颜色与粗细实时跟随） -->
+                                                <ikw:SimpleStackPanel HorizontalAlignment="Center" Orientation="Horizontal" Spacing="6">
+                                                    <Border
+        Margin="0"
+        Padding="10,3"
+        Background="Transparent"
+        BorderBrush="{DynamicResource FloatBarBorderBrush}"
+        BorderThickness="1"
+        CornerRadius="12"
+        Cursor="Hand"
+        MouseUp="PenWidthPreset_MouseUp"
+        Tag="1">
+        <TextBlock FontSize="12" Foreground="{DynamicResource FloatBarForeground}" Text="细 1" />
+    </Border>
+    <Border
+        Margin="0"
+        Padding="10,3"
+        Background="Transparent"
+        BorderBrush="{DynamicResource FloatBarBorderBrush}"
+        BorderThickness="1"
+        CornerRadius="12"
+        Cursor="Hand"
+        MouseUp="PenWidthPreset_MouseUp"
+        Tag="5">
+        <TextBlock FontSize="12" Foreground="{DynamicResource FloatBarForeground}" Text="中 5" />
+    </Border>
+    <Border
+        Margin="0"
+        Padding="10,3"
+        Background="Transparent"
+        BorderBrush="{DynamicResource FloatBarBorderBrush}"
+        BorderThickness="1"
+        CornerRadius="12"
+        Cursor="Hand"
+        MouseUp="PenWidthPreset_MouseUp"
+        Tag="12">
+        <TextBlock FontSize="12" Foreground="{DynamicResource FloatBarForeground}" Text="粗 12" />
+    </Border>
+                                                                                                                                                                                                </ikw:SimpleStackPanel>
+                                                <Grid Height="34" Margin="0,2,0,0" HorizontalAlignment="Center">
+                                                    <Path
+                                                        x:Name="PreviewPathHard"
+                                                        Width="220"
+                                                        Height="32"
+                                                        Data="M 4,24 C 26,4 52,32 84,17 C 116,2 146,30 178,16 C 194,9 206,12 216,15"
+                                                        Stroke="Black"
+                                                        StrokeThickness="5"
+                                                        Stretch="None">
+                                                        <Path.Effect>
+                                                            <DropShadowEffect
+                                                                BlurRadius="2"
+                                                                Opacity="0.35"
+                                                                ShadowDepth="1" />
+                                                        </Path.Effect>
+                                                    </Path>
+                                                </Grid>
+<!-- 行3：11 色统一调色盘（硬笔/软笔共用一套色集合，选中勾标自动同步）+ 自定义色格 + 吸管取色 -->
+                                                <ItemsControl HorizontalAlignment="Center" ItemsSource="{Binding InkTool.PenSwatches}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <Controls:UniformGrid Rows="2" Columns="6" />
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border
+                                                                Width="44"
+                                                                Height="44"
+                                                                Margin="4"
+                                                                Background="{Binding Brush}"
+                                                                BorderBrush="{DynamicResource FloatBarBorderBrush}"
+                                                                BorderThickness="1.5"
+                                                                CornerRadius="100"
+                                                                Cursor="Hand"
+                                                                MouseUp="PenSwatch_MouseUp"
+                                                                Tag="{Binding Index}">
+                                                                <Grid>
+                                                                    <ui:FontIcon
+                                                                        HorizontalAlignment="Center"
+                                                                        VerticalAlignment="Center"
+                                                                        FontFamily="{StaticResource FluentIconFontFamily}"
+                                                                        FontSize="14"
+                                                                        Foreground="#59FFFFFF"
+                                                                        Glyph="&#xe710;"
+                                                                        Visibility="{Binding IsCustom, Converter={StaticResource PaletteBoolToVisibility}}" />
+                                                                    <Viewbox Margin="8" Visibility="{Binding IsSelected, Converter={StaticResource PaletteBoolToVisibility}}">
+                                                                        <Image
+                                                                            Width="24"
+                                                                            Height="24"
+                                                                            RenderOptions.BitmapScalingMode="HighQuality"
+                                                                            Source="/Resources/Icons-png/checked-white.png" />
+                                                                    </Viewbox>
+                                                                </Grid>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                                <!-- 吸管取色：进入取色模式后点画面任意位置即可取到屏幕颜色，写入自定义色格 -->
+                                                <Border
+                                                    Height="26"
+                                                    Margin="4,4,4,0"
+                                                    Background="Transparent"
+                                                    BorderBrush="{DynamicResource FloatBarBorderBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Cursor="Cross"
+                                                    MouseUp="EyedropperButton_MouseUp">
+                                                    <TextBlock
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        FontSize="12"
+                                                        Foreground="{DynamicResource FloatBarForeground}"
+                                                        Text="吸管取色" />
+                                                </Border>
                                             </ikw:SimpleStackPanel>
                                         </TabItem>
                                         <TabItem Header="软笔">
@@ -441,196 +383,120 @@
                                                         VerticalAlignment="Center" />
                                                     <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource FloatBarForeground}" Text="{Binding Value, ElementName=InkWidthSliderSoft, Mode=OneWay, StringFormat={}{0:0.#}}" />
                                                 </Grid>
-                                                <!-- 行3：9 色调色盘 + 亮/暗系切换（沿用原版色块样式） -->
-                                                <Controls:UniformGrid Rows="2" Columns="5" HorizontalAlignment="Center">
-                                                        <Border
-                                                            Width="50"
-                                                            Height="50"
-                                                            Margin="4"
-                                                            Background="Transparent"
-                                                            BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                                                            BorderThickness="1.5"
-                                                            CornerRadius="100"
-                                                            MouseUp="ColorThemeSwitch_MouseUp">
-                                                            <Grid Margin="5">
-                                                                <ui:FontIcon x:Name="ColorThemeSwitchIconSoft"
-                                                                    Width="26"
-                                                                    Height="26"
-                                                                    VerticalAlignment="Top"
-                                                                    FontFamily="{StaticResource FluentIconFontFamily}"
-                                                                    Foreground="{DynamicResource FloatBarForeground}"
-                                                                    Glyph="&#xe706;" />
-                                                                <TextBlock x:Name="ColorThemeSwitchTextBlockSoft"
-                                                                    HorizontalAlignment="Center"
-                                                                    VerticalAlignment="Bottom"
-                                                                    FontSize="13"
-                                                                    Foreground="{DynamicResource FloatBarForeground}"
-                                                                    Text="亮系" />
-                                                            </Grid>
-                                                        </Border>
-                                                        <Border x:Name="BorderPenColorBlackSoft"
-                                                            Width="50"
-                                                            Height="50"
-                                                            Margin="4"
-                                                            Background="Black"
-                                                            BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                                                            BorderThickness="1.5"
-                                                            CornerRadius="100"
-                                                            MouseUp="BtnColorBlack_Click">
-                                                            <Viewbox x:Name="ViewboxBtnColorBlackSoftContent" Margin="8" Visibility="Collapsed">
-                                                                <Image
-                                                                    Width="24"
-                                                                    Height="24"
-                                                                    VerticalAlignment="Top"
-                                                                    RenderOptions.BitmapScalingMode="HighQuality"
-                                                                    Source="/Resources/Icons-png/checked-white.png" />
-                                                            </Viewbox>
-                                                        </Border>
-                                                        <Border x:Name="BorderPenColorWhiteSoft"
-                                                            Width="50"
-                                                            Height="50"
-                                                            Margin="4"
-                                                            Background="White"
-                                                            BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                                                            BorderThickness="1.5"
-                                                            CornerRadius="100"
-                                                            MouseUp="BtnColorWhite_Click">
-                                                            <Viewbox x:Name="ViewboxBtnColorWhiteSoftContent" Margin="8" Visibility="Collapsed">
-                                                                <Image
-                                                                    Width="24"
-                                                                    Height="24"
-                                                                    VerticalAlignment="Top"
-                                                                    RenderOptions.BitmapScalingMode="HighQuality"
-                                                                    Source="/Resources/Icons-png/checked-black.png" />
-                                                            </Viewbox>
-                                                        </Border>
-                                                        <Border x:Name="BorderPenColorRedSoft"
-                                                            Width="50"
-                                                            Height="50"
-                                                            Margin="4"
-                                                            Background="#dc2626"
-                                                            BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                                                            BorderThickness="1.5"
-                                                            CornerRadius="100"
-                                                            MouseUp="BtnColorRed_Click">
-                                                            <Viewbox x:Name="ViewboxBtnColorRedSoftContent" Margin="8" Visibility="Collapsed">
-                                                                <Image
-                                                                    Width="24"
-                                                                    Height="24"
-                                                                    VerticalAlignment="Top"
-                                                                    RenderOptions.BitmapScalingMode="HighQuality"
-                                                                    Source="/Resources/Icons-png/checked-white.png" />
-                                                            </Viewbox>
-                                                        </Border>
-                                                        <Border x:Name="BorderPenColorPinkSoft"
-                                                            Width="50"
-                                                            Height="50"
-                                                            Margin="4"
-                                                            Background="#c72ec7"
-                                                            BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                                                            BorderThickness="1.5"
-                                                            CornerRadius="100"
-                                                            MouseUp="BtnColorPink_Click">
-                                                            <Viewbox x:Name="ViewboxBtnColorPinkSoftContent" Margin="8" Visibility="Collapsed">
-                                                                <Image
-                                                                    Width="24"
-                                                                    Height="24"
-                                                                    VerticalAlignment="Top"
-                                                                    RenderOptions.BitmapScalingMode="HighQuality"
-                                                                    Source="/Resources/Icons-png/checked-white.png" />
-                                                            </Viewbox>
-                                                        </Border>
-                                                        <Border x:Name="BorderPenColorOrangeSoft"
-                                                            Width="50"
-                                                            Height="50"
-                                                            Margin="4"
-                                                            Background="#ea580c"
-                                                            BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                                                            BorderThickness="1.5"
-                                                            CornerRadius="100"
-                                                            MouseUp="BtnColorOrange_Click">
-                                                            <Viewbox x:Name="ViewboxBtnColorOrangeSoftContent" Margin="8" Visibility="Collapsed">
-                                                                <Image
-                                                                    Width="24"
-                                                                    Height="24"
-                                                                    VerticalAlignment="Top"
-                                                                    RenderOptions.BitmapScalingMode="HighQuality"
-                                                                    Source="/Resources/Icons-png/checked-white.png" />
-                                                            </Viewbox>
-                                                        </Border>
-                                                        <Border x:Name="BorderPenColorYellowSoft"
-                                                            Width="50"
-                                                            Height="50"
-                                                            Margin="4"
-                                                            Background="#eab308"
-                                                            BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                                                            BorderThickness="1.5"
-                                                            CornerRadius="100"
-                                                            MouseUp="BtnColorYellow_Click">
-                                                            <Viewbox x:Name="ViewboxBtnColorYellowSoftContent" Margin="8" Visibility="Collapsed">
-                                                                <Image
-                                                                    Width="24"
-                                                                    Height="24"
-                                                                    VerticalAlignment="Top"
-                                                                    RenderOptions.BitmapScalingMode="HighQuality"
-                                                                    Source="/Resources/Icons-png/checked-white.png" />
-                                                            </Viewbox>
-                                                        </Border>
-                                                        <Border x:Name="BorderPenColorGreenSoft"
-                                                            Width="50"
-                                                            Height="50"
-                                                            Margin="4"
-                                                            Background="#16a34a"
-                                                            BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                                                            BorderThickness="1.5"
-                                                            CornerRadius="100"
-                                                            MouseUp="BtnColorGreen_Click">
-                                                            <Viewbox x:Name="ViewboxBtnColorGreenSoftContent" Margin="8" Visibility="Collapsed">
-                                                                <Image
-                                                                    Width="24"
-                                                                    Height="24"
-                                                                    VerticalAlignment="Top"
-                                                                    RenderOptions.BitmapScalingMode="HighQuality"
-                                                                    Source="/Resources/Icons-png/checked-white.png" />
-                                                            </Viewbox>
-                                                        </Border>
-                                                        <Border x:Name="BorderPenColorTealSoft"
-                                                            Width="50"
-                                                            Height="50"
-                                                            Margin="4"
-                                                            Background="#0d9488"
-                                                            BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                                                            BorderThickness="1.5"
-                                                            CornerRadius="100"
-                                                            MouseUp="BtnColorTeal_Click">
-                                                            <Viewbox x:Name="ViewboxBtnColorTealSoftContent" Margin="8" Visibility="Collapsed">
-                                                                <Image
-                                                                    Width="24"
-                                                                    Height="24"
-                                                                    VerticalAlignment="Top"
-                                                                    RenderOptions.BitmapScalingMode="HighQuality"
-                                                                    Source="/Resources/Icons-png/checked-white.png" />
-                                                            </Viewbox>
-                                                        </Border>
-                                                        <Border x:Name="BorderPenColorBlueSoft"
-                                                            Width="50"
-                                                            Height="50"
-                                                            Margin="4"
-                                                            Background="#2563eb"
-                                                            BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                                                            BorderThickness="1.5"
-                                                            CornerRadius="100"
-                                                            MouseUp="BtnColorBlue_Click">
-                                                            <Viewbox x:Name="ViewboxBtnColorBlueSoftContent" Margin="8" Visibility="Collapsed">
-                                                                <Image
-                                                                    Width="24"
-                                                                    Height="24"
-                                                                    VerticalAlignment="Top"
-                                                                    RenderOptions.BitmapScalingMode="HighQuality"
-                                                                    Source="/Resources/Icons-png/checked-white.png" />
-                                                            </Viewbox>
-                                                        </Border>
-                                                    </Controls:UniformGrid>
+                                                                                                                                                <!-- 行2.5：粗细快捷档（细 1 / 中 5 / 粗 12）+ 墨迹预览（颜色与粗细实时跟随） -->
+                                                <ikw:SimpleStackPanel HorizontalAlignment="Center" Orientation="Horizontal" Spacing="6">
+                                                    <Border
+        Margin="0"
+        Padding="10,3"
+        Background="Transparent"
+        BorderBrush="{DynamicResource FloatBarBorderBrush}"
+        BorderThickness="1"
+        CornerRadius="12"
+        Cursor="Hand"
+        MouseUp="PenWidthPreset_MouseUp"
+        Tag="1">
+        <TextBlock FontSize="12" Foreground="{DynamicResource FloatBarForeground}" Text="细 1" />
+    </Border>
+    <Border
+        Margin="0"
+        Padding="10,3"
+        Background="Transparent"
+        BorderBrush="{DynamicResource FloatBarBorderBrush}"
+        BorderThickness="1"
+        CornerRadius="12"
+        Cursor="Hand"
+        MouseUp="PenWidthPreset_MouseUp"
+        Tag="5">
+        <TextBlock FontSize="12" Foreground="{DynamicResource FloatBarForeground}" Text="中 5" />
+    </Border>
+    <Border
+        Margin="0"
+        Padding="10,3"
+        Background="Transparent"
+        BorderBrush="{DynamicResource FloatBarBorderBrush}"
+        BorderThickness="1"
+        CornerRadius="12"
+        Cursor="Hand"
+        MouseUp="PenWidthPreset_MouseUp"
+        Tag="12">
+        <TextBlock FontSize="12" Foreground="{DynamicResource FloatBarForeground}" Text="粗 12" />
+    </Border>
+                                                                                                                                                                                                </ikw:SimpleStackPanel>
+                                                <Grid Height="34" Margin="0,2,0,0" HorizontalAlignment="Center">
+                                                    <Path
+                                                        x:Name="PreviewPathSoft"
+                                                        Width="220"
+                                                        Height="32"
+                                                        Data="M 4,24 C 26,4 52,32 84,17 C 116,2 146,30 178,16 C 194,9 206,12 216,15"
+                                                        Stroke="Black"
+                                                        StrokeThickness="5"
+                                                        Stretch="None">
+                                                        <Path.Effect>
+                                                            <DropShadowEffect
+                                                                BlurRadius="2"
+                                                                Opacity="0.35"
+                                                                ShadowDepth="1" />
+                                                        </Path.Effect>
+                                                    </Path>
+                                                </Grid>
+<!-- 行3：11 色统一调色盘（硬笔/软笔共用一套色集合，选中勾标自动同步）+ 自定义色格 + 吸管取色 -->
+                                                <ItemsControl HorizontalAlignment="Center" ItemsSource="{Binding InkTool.PenSwatches}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <Controls:UniformGrid Rows="2" Columns="6" />
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border
+                                                                Width="44"
+                                                                Height="44"
+                                                                Margin="4"
+                                                                Background="{Binding Brush}"
+                                                                BorderBrush="{DynamicResource FloatBarBorderBrush}"
+                                                                BorderThickness="1.5"
+                                                                CornerRadius="100"
+                                                                Cursor="Hand"
+                                                                MouseUp="PenSwatch_MouseUp"
+                                                                Tag="{Binding Index}">
+                                                                <Grid>
+                                                                    <ui:FontIcon
+                                                                        HorizontalAlignment="Center"
+                                                                        VerticalAlignment="Center"
+                                                                        FontFamily="{StaticResource FluentIconFontFamily}"
+                                                                        FontSize="14"
+                                                                        Foreground="#59FFFFFF"
+                                                                        Glyph="&#xe710;"
+                                                                        Visibility="{Binding IsCustom, Converter={StaticResource PaletteBoolToVisibility}}" />
+                                                                    <Viewbox Margin="8" Visibility="{Binding IsSelected, Converter={StaticResource PaletteBoolToVisibility}}">
+                                                                        <Image
+                                                                            Width="24"
+                                                                            Height="24"
+                                                                            RenderOptions.BitmapScalingMode="HighQuality"
+                                                                            Source="/Resources/Icons-png/checked-white.png" />
+                                                                    </Viewbox>
+                                                                </Grid>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                                <!-- 吸管取色：进入取色模式后点画面任意位置即可取到屏幕颜色，写入自定义色格 -->
+                                                <Border
+                                                    Height="26"
+                                                    Margin="4,4,4,0"
+                                                    Background="Transparent"
+                                                    BorderBrush="{DynamicResource FloatBarBorderBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Cursor="Cross"
+                                                    MouseUp="EyedropperButton_MouseUp">
+                                                    <TextBlock
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        FontSize="12"
+                                                        Foreground="{DynamicResource FloatBarForeground}"
+                                                        Text="吸管取色" />
+                                                </Border>
                                             </ikw:SimpleStackPanel>
                                         </TabItem>
                                         <TabItem Header="荧光笔">
@@ -1261,5 +1127,32 @@
     </Border>
     </ikw:SimpleStackPanel>
 </Viewbox>
+
+        <!-- 吸管取色层：整窗铺满的透明十字层，移动实时预览、左键确认、右键取消 -->
+        <Grid
+            x:Name="EyedropperLayer"
+            Background="Transparent"
+            Cursor="Cross"
+            MouseLeftButtonUp="EyedropperLayer_MouseLeftButtonUp"
+            MouseMove="EyedropperLayer_MouseMove"
+            MouseRightButtonUp="EyedropperLayer_MouseRightButtonUp"
+            Visibility="Collapsed">
+            <Border
+                x:Name="EyedropperPreview"
+                Width="44"
+                Height="44"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Background="White"
+                BorderBrush="White"
+                BorderThickness="2"
+                CornerRadius="8"
+                IsHitTestVisible="False"
+                Visibility="Collapsed">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="8" Opacity="0.5" ShadowDepth="2" />
+                </Border.Effect>
+            </Border>
+        </Grid>
     </Grid>
 </UserControl>

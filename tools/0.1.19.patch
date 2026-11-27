@@ -1,0 +1,404 @@
+diff --git a/SCHOOL_PDF/App.xaml.cs b/SCHOOL_PDF/App.xaml.cs
+index 4874934..dfa3f12 100644
+--- a/SCHOOL_PDF/App.xaml.cs
++++ b/SCHOOL_PDF/App.xaml.cs
+@@ -40,7 +40,7 @@ public partial class App : Application
+         RegisterInkRecoveryOnActivated();
+ 
+         // 设置界面「墨迹保存清晰度上限」滑条：SettingsView.xaml 过大（80KB+），改由代码在
+-        // 「墨迹书写」页末尾追加一张 SettingsCard（2~15 倍，值写回 Settings.json）。
++        // 「墨迹书写」页末尾追加一张 SettingsCard（1~4 倍，值写回 Settings.json）。
+         RegisterInkQualityCard();
+ 
+         // 挂接父控制台：诊断 Console.WriteLine 在终端启动/调试时可见（WinExe 默认无控制台；
+@@ -145,7 +145,7 @@ public partial class App : Application
+ 
+     private static bool _inkQualityCardAttached;
+ 
+-    /// <summary>往「墨迹书写」设置页末尾追加一张清晰度滑条卡片（2~15 倍）。
++    /// <summary>往「墨迹书写」设置页末尾追加一张清晰度滑条卡片（1~4 倍）。
+     /// 返回 true 表示已处理（无论注入成功或已注入过），调用方据此摘掉 Activated 钩子。</summary>
+     private static bool AttachInkQualityCard(DependencyObject root)
+     {
+@@ -164,8 +164,8 @@ public partial class App : Application
+         };
+         var slider = new Slider
+         {
+-            Minimum = 2,
+-            Maximum = 15,
++            Minimum = 1,
++            Maximum = 4,
+             TickFrequency = 1,
+             IsSnapToTickEnabled = true,
+             Width = 220,
+@@ -180,13 +180,13 @@ public partial class App : Application
+         };
+ 
+         double initial = SettingsService.Load().InkExportQualityScale;
+-        if (initial < 2 || initial > 15)
++        if (initial < 1 || initial > 4)
+             initial = 4;
+         slider.Value = initial;
+         SetInkQualityText(valueText, initial);
+         slider.ValueChanged += (_, args) =>
+         {
+-            double value = Math.Clamp(args.NewValue, 2, 15);
++            double value = Math.Clamp(args.NewValue, 1, 4);
+             SetInkQualityText(valueText, value);
+             try
+             {
+diff --git a/SCHOOL_PDF/Controls/InkToolBar.xaml b/SCHOOL_PDF/Controls/InkToolBar.xaml
+index 86782d6..e6a7a5c 100644
+--- a/SCHOOL_PDF/Controls/InkToolBar.xaml
++++ b/SCHOOL_PDF/Controls/InkToolBar.xaml
+@@ -27,7 +27,7 @@
+             <Viewbox.LayoutTransform>
+                 <ScaleTransform x:Name="ViewboxFloatingBarScaleTransform" ScaleX="1" ScaleY="1" />
+             </Viewbox.LayoutTransform>
+-            <ikw:SimpleStackPanel Orientation="Horizontal">
++            <ikw:SimpleStackPanel Orientation="Horizontal" Background="Transparent">
+ 
+                 <ikw:SimpleStackPanel.Resources>
+                     <!--  定义 SolidColorBrush 资源  -->
+@@ -142,7 +142,7 @@
+                                 </Grid>
+                             </Border>
+                         </Button>
+-                        <ikw:SimpleStackPanel Name="StackPanelCanvasControls" Orientation="{Binding ElementName=StackPanelFloatingBar, Path=Orientation}" Visibility="Visible">
++                        <ikw:SimpleStackPanel Name="StackPanelCanvasControls" Background="Transparent" Orientation="{Binding ElementName=StackPanelFloatingBar, Path=Orientation}" Visibility="Visible">
+                             <!--  图形入口按钮 + 形状面板（ICA 浮动栏 ImageDrawShape_Click 入口 + BorderDrawShape 面板移植，样式一致，初始隐藏）  -->
+                             <!--  墨迹选项弹窗（照 ICA PenPalette：Popup + Custom 放置，PlacementTarget=墨迹按钮，见代码后置回调）  -->
+                             <Popup x:Name="PenPalette"
+@@ -199,14 +199,14 @@
+                                                         Grid.Column="1"
+                                                         Margin="10,0,0,0"
+                                                         IsSnapToTickEnabled="True"
+-                                                        Maximum="30"
+-                                                        Minimum="1"
+-                                                        TickFrequency="1"
++                                                        Maximum="20"
++                                                        Minimum="0.5"
++                                                        TickFrequency="0.5"
+                                                         TickPlacement="None"
+                                                         ValueChanged="InkWidthSlider_ValueChanged"
+                                                         Value="5"
+                                                         VerticalAlignment="Center" />
+-                                                    <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource FloatBarForeground}" Text="{Binding Value, ElementName=InkWidthSliderHard, Mode=OneWay}" />
++                                                    <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource FloatBarForeground}" Text="{Binding Value, ElementName=InkWidthSliderHard, Mode=OneWay, StringFormat={}{0:0.#}}" />
+                                                 </Grid>
+                                                 <!-- 行3：9 色调色盘 + 亮/暗系切换（沿用原版色块样式） -->
+                                                 <Controls:UniformGrid Rows="2" Columns="5" HorizontalAlignment="Center">
+@@ -432,14 +432,14 @@
+                                                         Grid.Column="1"
+                                                         Margin="10,0,0,0"
+                                                         IsSnapToTickEnabled="True"
+-                                                        Maximum="30"
+-                                                        Minimum="1"
+-                                                        TickFrequency="1"
++                                                        Maximum="20"
++                                                        Minimum="0.5"
++                                                        TickFrequency="0.5"
+                                                         TickPlacement="None"
+                                                         ValueChanged="InkWidthSlider_ValueChanged"
+                                                         Value="5"
+                                                         VerticalAlignment="Center" />
+-                                                    <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource FloatBarForeground}" Text="{Binding Value, ElementName=InkWidthSliderSoft, Mode=OneWay}" />
++                                                    <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource FloatBarForeground}" Text="{Binding Value, ElementName=InkWidthSliderSoft, Mode=OneWay, StringFormat={}{0:0.#}}" />
+                                                 </Grid>
+                                                 <!-- 行3：9 色调色盘 + 亮/暗系切换（沿用原版色块样式） -->
+                                                 <Controls:UniformGrid Rows="2" Columns="5" HorizontalAlignment="Center">
+@@ -679,14 +679,14 @@
+                                                         Grid.Column="1"
+                                                         Margin="10,0,0,0"
+                                                         IsSnapToTickEnabled="True"
+-                                                        Maximum="30"
+-                                                        Minimum="1"
+-                                                        TickFrequency="1"
++                                                        Maximum="20"
++                                                        Minimum="0.5"
++                                                        TickFrequency="0.5"
+                                                         TickPlacement="None"
+                                                         ValueChanged="InkHighlighterWidthSlider_ValueChanged"
+                                                         Value="5"
+                                                         VerticalAlignment="Center" />
+-                                                    <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource FloatBarForeground}" Text="{Binding Value, ElementName=InkHighlighterWidthSlider, Mode=OneWay}" />
++                                                    <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource FloatBarForeground}" Text="{Binding Value, ElementName=InkHighlighterWidthSlider, Mode=OneWay, StringFormat={}{0:0.#}}" />
+                                                 </Grid>
+                                                 <!-- 行4：6 色荧光笔色块（沿用原版色块样式） -->
+                                                 <Controls:UniformGrid Columns="3" HorizontalAlignment="Center">
+diff --git a/SCHOOL_PDF/Controls/InkToolBar.xaml.cs b/SCHOOL_PDF/Controls/InkToolBar.xaml.cs
+index 5a42f88..b9d1855 100644
+--- a/SCHOOL_PDF/Controls/InkToolBar.xaml.cs
++++ b/SCHOOL_PDF/Controls/InkToolBar.xaml.cs
+@@ -27,6 +27,10 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
+     /// <summary>最近一次选中态模式（mouse/pen/color/eraser），供文字注释切换后幂等重刷。</summary>
+     private string? _lastMode;
+ 
++    /// <summary>加载遮罩订阅防重复挂接：透明（Opacity=0）的元素仍参与命中测试，加载期必须停用，
++    /// 否则点「看不见的浮动栏」会被它拦住（用户感知为点击穿透）。</summary>
++    private bool _openingHookHooked;
++
+     /// <summary>选中项的移入叠加色（随主题刷新：浅 8% 黑 / 深 13% 白）。</summary>
+     private Brush _hoverOverlayBrush = Brushes.Transparent;
+ 
+@@ -130,6 +134,16 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
+                         };
+                     }
+                 }
++                if (Vm is { } vm2 && !_openingHookHooked)
++                {
++                    _openingHookHooked = true;
++                    vm2.PropertyChanged += (_, e) =>
++                    {
++                        if (e.PropertyName == nameof(MainViewModel.IsOpeningPdf))
++                            IsHitTestVisible = !vm2.IsOpeningPdf;
++                    };
++                    IsHitTestVisible = !vm2.IsOpeningPdf;
++                }
+                 ApplyThemeToPalette();   // 色块 + 主题图标/文字 + 当前色勾标一并恢复
+                 UpdateBoardToolState("mouse");   // 首次加载高亮"鼠标"（默认即浏览模式，ICA 未做但需要）
+             };
+@@ -572,32 +586,46 @@ public void ApplyFloatBarText(bool show)
+     }
+ 
+     private void OutsideCloseHandler(object sender, MouseButtonEventArgs e)
+-        => CloseToolbarMenusOutside(e.OriginalSource as DependencyObject);
++    {
++        if (!CloseToolbarMenusOutside(e.OriginalSource as DependencyObject))
++            return;
++        // 笔（会被提升为鼠标事件）与触摸的「点外关闭」只用来收菜单：把这一次按下吞掉，
++        // 否则同一笔会继续落到下面的页面成为误画（用户感知为菜单周围点击穿透）。
++        if (e.StylusDevice != null)
++            e.Handled = true;
++    }
+ 
+     /// <summary>触摸版点外关闭入口：与鼠标版共用同一判定体。</summary>
+     private void OutsideCloseTouchHandler(object? sender, TouchEventArgs e)
+-        => CloseToolbarMenusOutside(e.OriginalSource as DependencyObject);
++    {
++        if (CloseToolbarMenusOutside(e.OriginalSource as DependencyObject))
++            e.Handled = true;
++    }
+ 
+-    /// <summary>点外关闭判定体（鼠标/触摸共用）。</summary>
+-    private void CloseToolbarMenusOutside(DependencyObject? d)
++    /// <summary>点外关闭判定体（鼠标/触摸共用）。返回是否真的关闭了菜单（供调用方决定是否吞掉本次按下）。</summary>
++    private bool CloseToolbarMenusOutside(DependencyObject? d)
+     {
+         bool penOpen = PenPalette.IsOpen;
+         bool eraserOpen = EraserPalette.IsOpen;
+         if (!penOpen && !eraserOpen)
+         {
+             UnhookOutsideClose();
+-            return;
++            return false;
+         }
+-        if (d == null) return;
++        if (d == null) return false;
++        bool dismissed = false;
+         // 点在墨迹面板内或墨迹按钮上不关（按钮留给 PenIcon_Click 自己 toggle）；橡皮同理
+         if (penOpen && !IsDescendantOf(d, PenPaletteRoot) && !IsDescendantOf(d, BtnPen))
+         {
+             PopupFlyAnimator.FlyOut(PenPalette, PenPaletteRoot);   // 滑出动画幂等，重复点外不叠加
++            dismissed = true;
+         }
+         if (eraserOpen && !IsDescendantOf(d, EraserPaletteRoot) && !IsDescendantOf(d, BtnEraser))
+         {
+             PopupFlyAnimator.FlyOut(EraserPalette, EraserPaletteRoot);
++            dismissed = true;
+         }
++        return dismissed;
+     }
+ 
+     /// <summary>视觉/逻辑树向上查找祖先（Popup 子树用视觉树，与主树隔离）。</summary>
+diff --git a/SCHOOL_PDF/Controls/InkToolBar_ShapeDrawing.cs b/SCHOOL_PDF/Controls/InkToolBar_ShapeDrawing.cs
+index 38a38c7..d8b972c 100644
+--- a/SCHOOL_PDF/Controls/InkToolBar_ShapeDrawing.cs
++++ b/SCHOOL_PDF/Controls/InkToolBar_ShapeDrawing.cs
+@@ -69,23 +69,34 @@ public partial class InkToolBar
+ 
+     /// <summary>面板外点击关闭（非固定状态生效；宿主 Window PreviewMouseDown 隧道入口，打开时挂接/关闭时摘除）。</summary>
+     private void ShapePanelOutsideDown(object sender, MouseButtonEventArgs e)
+-        => ShapePanelOutsideClose(e.OriginalSource as DependencyObject);
++    {
++        if (!ShapePanelOutsideClose(e.OriginalSource as DependencyObject))
++            return;
++        // 笔触点外关闭只用于收面板，吞掉这次按下，避免同一笔落到页面误画（点击穿透）
++        if (e.StylusDevice != null)
++            e.Handled = true;
++    }
+ 
+     /// <summary>触摸版面板外关闭入口：触摸被 InkCanvas 处理时不会提升成鼠标事件，必须单独挂 PreviewTouchDown。</summary>
+     private void ShapePanelOutsideTouchDown(object? sender, TouchEventArgs e)
+-        => ShapePanelOutsideClose(e.OriginalSource as DependencyObject);
++    {
++        if (ShapePanelOutsideClose(e.OriginalSource as DependencyObject))
++            e.Handled = true;
++    }
+ 
+-    /// <summary>面板外关闭判定体（鼠标/触摸共用）：非固定状态、点击源不在面板内也不在入口按钮上才关。</summary>
+-    private void ShapePanelOutsideClose(DependencyObject? src)
++    /// <summary>面板外关闭判定体（鼠标/触摸共用）：非固定状态、点击源不在面板内也不在入口按钮上才关。
++    /// 返回是否真的关闭（供调用方决定是否吞掉本次按下）。</summary>
++    private bool ShapePanelOutsideClose(DependencyObject? src)
+     {
+         if (_shapePanelPinned || !ShapePalette.IsOpen)
+-            return;
++            return false;
+         if (src == null)
+-            return;
++            return false;
+         // 点在面板内或图形入口按钮上交给各自处理器（入口按钮 Click 负责 toggle）
+         if (BorderDrawShape.IsAncestorOf(src) || BtnDrawShape.IsAncestorOf(src))
+-            return;
++            return false;
+         CollapseBorderDrawShape();
++        return true;
+     }
+ 
+     /// <summary>挂接宿主窗口的点外关闭（面板打开时调用一次；Loaded 后窗口引用可用）。</summary>
+diff --git a/SCHOOL_PDF/Controls/SettingsView.xaml b/SCHOOL_PDF/Controls/SettingsView.xaml
+index 0ba5b90..85d32ca 100644
+--- a/SCHOOL_PDF/Controls/SettingsView.xaml
++++ b/SCHOOL_PDF/Controls/SettingsView.xaml
+@@ -282,7 +282,7 @@
+                                     </TextBlock>
+                                     <Slider x:Name="SliderDefaultPdfPenWidth"
+                                             IsMoveToPointEnabled="True"
+-                                            Minimum="1" Maximum="30" TickFrequency="1" IsSnapToTickEnabled="True"
++                                            Minimum="0.5" Maximum="20" TickFrequency="0.5" IsSnapToTickEnabled="True"
+                                             Width="220"
+                                             ValueChanged="SliderDefaultPdfPenWidth_ValueChanged"/>
+                                 </DockPanel>
+diff --git a/SCHOOL_PDF/Controls/SettingsView.xaml.cs b/SCHOOL_PDF/Controls/SettingsView.xaml.cs
+index 7e88bfb..1f981e2 100644
+--- a/SCHOOL_PDF/Controls/SettingsView.xaml.cs
++++ b/SCHOOL_PDF/Controls/SettingsView.xaml.cs
+@@ -1,4 +1,5 @@
+ using System.Diagnostics;
++using System.Globalization;
+ using System.IO;
+ using System.Windows;
+ using System.Windows.Controls;
+@@ -1029,11 +1030,11 @@ public partial class SettingsView : System.Windows.Controls.UserControl
+         RefreshDefaultPdfPenColorItems();   // 内部按 mode 填 18 / 6 项并选中当前值
+         _syncingDefaultOptions = true;
+         SliderDefaultPdfPenWidth.Value = Math.Clamp(
+-            highlighter ? vm.Settings.DefaultPdfHighlighterWidth : vm.Settings.DefaultPdfPenWidth, 1, 30);
++            highlighter ? vm.Settings.DefaultPdfHighlighterWidth : vm.Settings.DefaultPdfPenWidth, 0.5, 20);
+         SliderDefaultPdfAlpha.Value = Math.Clamp(vm.Settings.DefaultPdfHighlighterAlpha, 20, 240);
+         SliderDefaultEraserSizePdf.Value = Math.Clamp(vm.Settings.DefaultPdfEraserSize, 1, 30);
+         _syncingDefaultOptions = false;
+-        DefaultPdfPenWidthValue.Text = ((int)SliderDefaultPdfPenWidth.Value).ToString();
++        DefaultPdfPenWidthValue.Text = SliderDefaultPdfPenWidth.Value.ToString("0.#", CultureInfo.InvariantCulture);
+         DefaultPdfAlphaValue.Text = ((int)SliderDefaultPdfAlpha.Value).ToString();
+         DefaultEraserSizeValuePdf.Text = ((int)SliderDefaultEraserSizePdf.Value).ToString();
+         CardDefaultPdfAlpha.Visibility = highlighter ? Visibility.Visible : Visibility.Collapsed;
+@@ -1140,8 +1141,8 @@ public partial class SettingsView : System.Windows.Controls.UserControl
+     private void SliderDefaultPdfPenWidth_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+     {
+         if (_syncingDefaultOptions || Vm is not { } vm) return;
+-        double width = Math.Clamp((int)Math.Round(e.NewValue), 1, 30);
+-        DefaultPdfPenWidthValue.Text = width.ToString("0");
++        double width = Math.Clamp(Math.Round(e.NewValue * 2) / 2, 0.5, 20);
++        DefaultPdfPenWidthValue.Text = width.ToString("0.#", CultureInfo.InvariantCulture);
+         if (vm.Settings.DefaultPdfPenMode == 2)
+         {
+             if (Math.Abs(vm.Settings.DefaultPdfHighlighterWidth - width) < 0.001) return;
+diff --git a/SCHOOL_PDF/Models/AppSettings.cs b/SCHOOL_PDF/Models/AppSettings.cs
+index 33fc28f..d2ace2b 100644
+--- a/SCHOOL_PDF/Models/AppSettings.cs
++++ b/SCHOOL_PDF/Models/AppSettings.cs
+@@ -271,7 +271,7 @@ public class AppSettings
+ 
+     // ══ 墨迹导出清晰度 ══
+ 
+-    /// <summary>保存批注时墨迹栅格图的最大放大倍率（2~15，默认 4）：越大越清晰，内存与 PDF 体积同步增长；
++    /// <summary>保存批注时墨迹栅格图的最大放大倍率（1~4，默认 4）：越大越清晰，内存与 PDF 体积同步增长；
+     /// 实际生效值还要受单页像素上限（约 4096×4096）裁剪，超大页面达不到设定倍率。</summary>
+     [JsonPropertyName("inkExportQualityScale")]
+     public double InkExportQualityScale { get; set; } = 4.0;
+diff --git a/SCHOOL_PDF/Services/PdfRenderService.cs b/SCHOOL_PDF/Services/PdfRenderService.cs
+index 2e5b841..9d7597c 100644
+--- a/SCHOOL_PDF/Services/PdfRenderService.cs
++++ b/SCHOOL_PDF/Services/PdfRenderService.cs
+@@ -108,7 +108,7 @@ public sealed class PdfRenderService : IDisposable
+ 
+         // 墨迹层是位图：分辨率必须不低于“页面当前被栅格化的像素宽”，否则重载后页面一放大，
+         // 墨迹就先糊掉（矢量笔画原本是锐的，对比之下非常明显）。
+-        // 取当前页面位图宽 ×1.25 的余量，下限固定 2 倍；上限读设置（2~15，默认 4），
++        // 取当前页面位图宽 ×1.25 的余量，下限固定 2 倍；上限读设置（1~4，默认 4），
+         // 再受单页像素上限（约 4096×4096）与 8192 边长裁剪。
+         double desiredScale = 2.0;
+         if (page.Image is BitmapSource pageBitmap && pageBitmap.PixelWidth > 0 && coordinateWidth > 0)
+@@ -118,7 +118,7 @@ public sealed class PdfRenderService : IDisposable
+         {
+             double configured = SettingsService.Load().InkExportQualityScale;
+             if (configured > 0)
+-                maxScale = Math.Clamp(configured, 2.0, 15.0);
++                maxScale = Math.Clamp(configured, 1.0, 4.0);
+         }
+         catch { /* 设置读取失败按默认 4 倍 */ }
+         double scale = Math.Min(maxScale, Math.Min(desiredScale, Math.Min(pixelLimitScale,
+diff --git a/SCHOOL_PDF/ViewModels/InkToolViewModel.cs b/SCHOOL_PDF/ViewModels/InkToolViewModel.cs
+index e6ad52a..69116da 100644
+--- a/SCHOOL_PDF/ViewModels/InkToolViewModel.cs
++++ b/SCHOOL_PDF/ViewModels/InkToolViewModel.cs
+@@ -262,11 +262,11 @@ public sealed class InkToolViewModel : ViewModelBase
+         {
+             case InkPenType.Hard:
+             case InkPenType.Soft:
+-                InkWidth = Math.Clamp(_penWidth, 1, 30);
++                InkWidth = Math.Clamp(_penWidth, 0.5, 20);
+                 SetInkColor(PenLightColorMap.ContainsKey(_penColor) ? _penColor : 1);
+                 break;
+             case InkPenType.Highlighter:
+-                InkWidth = Math.Clamp(_highlighterWidth, 1, 30);
++                InkWidth = Math.Clamp(_highlighterWidth, 0.5, 20);
+                 SetInkColor(HighlighterColorMap.ContainsKey(_highlighterColor) ? _highlighterColor : 103);
+                 break;
+         }
+@@ -277,9 +277,9 @@ public sealed class InkToolViewModel : ViewModelBase
+     public void LoadFromSettings(AppSettings s)
+     {
+         _penColor = PenLightColorMap.ContainsKey(s.PenColor) ? s.PenColor : 1;
+-        _penWidth = Math.Clamp(s.PenWidth, 1, 30);
++        _penWidth = Math.Clamp(s.PenWidth, 0.5, 20);
+         _highlighterColor = HighlighterColorMap.ContainsKey(s.HighlighterColor) ? s.HighlighterColor : 103;
+-        _highlighterWidth = Math.Clamp(s.HighlighterWidth, 1, 30);
++        _highlighterWidth = Math.Clamp(s.HighlighterWidth, 0.5, 20);
+         InkAlpha = (byte)Math.Clamp(s.InkAlpha, 20, 240);
+         InkStyle = Math.Clamp(s.InkStyle, 0, 3);   // 笔锋全局共享
+         IsInkToShapeEnabled = s.IsInkToShapeEnabled;   // 墨迹纠正全局共享
+@@ -303,13 +303,13 @@ public sealed class InkToolViewModel : ViewModelBase
+ 
+     private double _inkWidth = 3;
+ 
+-    /// <summary>画笔粗细（1~30）。</summary>
++    /// <summary>画笔粗细（0.5~20，步进 0.5）。</summary>
+     public double InkWidth
+     {
+         get => _inkWidth;
+         set
+         {
+-            if (!SetField(ref _inkWidth, Math.Clamp(value, 1, 30)))
++            if (!SetField(ref _inkWidth, Math.Clamp(value, 0.5, 20)))
+                 return;
+             ApplyCurrentColor();   // 荧光笔宽度 = 30 + InkWidth/2
+         }
+diff --git a/SCHOOL_PDF/ViewModels/MainViewModel.cs b/SCHOOL_PDF/ViewModels/MainViewModel.cs
+index f886705..8114d98 100644
+--- a/SCHOOL_PDF/ViewModels/MainViewModel.cs
++++ b/SCHOOL_PDF/ViewModels/MainViewModel.cs
+@@ -664,9 +664,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
+     {
+         Settings.InkType = Math.Clamp(Settings.DefaultPdfPenMode, 0, 2);
+         Settings.PenColor = Settings.DefaultPdfPenColor;
+-        Settings.PenWidth = Math.Clamp(Settings.DefaultPdfPenWidth, 1, 30);
++        Settings.PenWidth = Math.Clamp(Settings.DefaultPdfPenWidth, 0.5, 20);
+         Settings.HighlighterColor = Settings.DefaultPdfHighlighterColor;
+-        Settings.HighlighterWidth = Math.Clamp(Settings.DefaultPdfHighlighterWidth, 1, 30);
++        Settings.HighlighterWidth = Math.Clamp(Settings.DefaultPdfHighlighterWidth, 0.5, 20);
+         Settings.InkAlpha = Math.Clamp(Settings.DefaultPdfHighlighterAlpha, 20, 240);
+         Settings.UseLightThemeColor = Settings.DefaultPdfColorLightTheme;
+         Settings.IsMultiFingerInkEnabled = Settings.DefaultPdfMultiFinger;

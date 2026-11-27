@@ -127,6 +127,10 @@ public class AppSettings
     [JsonPropertyName("inkColor")]
     public int InkColor { get; set; } = 1;
 
+    /// <summary>自定义画笔色（调色盘自定义格，形如 "#RRGGBB"；索引 11 使用）。</summary>
+    [JsonPropertyName("penCustomColor")]
+    public string PenCustomColor { get; set; } = "#7C3AED";
+
     /// <summary>荧光笔不透明度（20~240，对应 alpha；荧光笔页签专属记忆）。不入 Settings.json，随 view_state 按 PDF 存墨迹库。</summary>
     [JsonIgnore]
     public int InkAlpha { get; set; } = 120;

@@ -2,7 +2,7 @@
 
 面向课堂讲授与教学资料批注的 Windows PDF 应用——阅读、手写、标注在同一套工作流里完成，讲解时的圈画、公式推演与图形示意不必再切换到另一款白板工具。
 
-当前版本 **v0.1.21（浮动栏点按不再出墨点）** ｜ Windows 10 19041+ ｜ .NET 10 ｜ WPF + PDFium + WinRT Ink
+当前版本 **v0.1.22（11 色调色盘与吸管取色）** ｜ Windows 10 19041+ ｜ .NET 10 ｜ WPF + PDFium + WinRT Ink
 
 ## 功能
 
@@ -37,7 +37,8 @@
 
 | 版本 | 内容 |
 | --- | --- |
-| **v0.1.21** | 修复点浮动栏按钮时原地出墨点：整笔落在浮动栏范围内的墨迹即时丢弃 |
+| **v0.1.22** | 调色盘重做：11 色统一色板（去掉亮/暗系）、自定义色轮、吸管取色、粗细三档与墨迹预览、墨迹栏可拖动 |
+| v0.1.21 | 修复点浮动栏按钮时原地出墨点：整笔落在浮动栏范围内的墨迹即时丢弃 |
 | v0.1.20 | 隐藏全部滚动条（阅读区、缩略图、设置页、更新日志与错误窗口） |
 | v0.1.19 | 修复点击浮动栏穿透；笔粗细区间改为 0.5~20；墨迹清晰度区间改为 1~4 |
 | v0.1.18 | 性能优化：页面尺寸快路径、启动预热、渲染缓冲池扩容 |
@@ -49,8 +50,8 @@
 
 ## 下载
 
-- 安装包：[SCHOOL_TOOLS_PDF_x64_setup.exe](https://github.com/me13354091017/SCHOOL_TOOLS_PDF/releases/download/v0.1.21/SCHOOL_TOOLS_PDF_x64_setup.exe)
-- 免安装压缩包：[GitHub Release v0.1.21](https://github.com/me13354091017/SCHOOL_TOOLS_PDF/releases/tag/v0.1.21)
+- 安装包：[SCHOOL_TOOLS_PDF_x64_setup.exe](https://github.com/me13354091017/SCHOOL_TOOLS_PDF/releases/download/v0.1.22/SCHOOL_TOOLS_PDF_x64_setup.exe)
+- 免安装压缩包：[GitHub Release v0.1.22](https://github.com/me13354091017/SCHOOL_TOOLS_PDF/releases/tag/v0.1.22)
 
 ## 仓库结构
 

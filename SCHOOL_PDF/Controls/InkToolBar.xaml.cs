@@ -125,6 +125,11 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
                                 ToggleSwitchEnableInkToShapeSoft.IsOn = Vm?.InkTool.IsInkToShapeEnabled ?? false;
                                 return;
                             }
+                            if (e.PropertyName is nameof(InkToolViewModel.InkWidth) or nameof(InkToolViewModel.InkColor))
+                            {
+                                UpdatePenPreview();
+                                return;
+                            }
                             if (e.PropertyName != nameof(InkToolViewModel.ShapeDrawMode)) return;
                             // 图形面板选中态：选中项强调色圆角底+图标反色，归 0 全部复位
                             UpdateShapeItemHighlight(Vm?.InkTool.ShapeDrawMode ?? 0);
@@ -150,7 +155,8 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
                     };
                     IsHitTestVisible = !vm2.IsOpeningPdf;
                 }
-                ApplyThemeToPalette();   // 色块 + 主题图标/文字 + 当前色勾标一并恢复
+                ApplyThemeToPalette();   // 色块 + 当前色勾标一并恢复
+                UpdatePenPreview();
                 UpdateBoardToolState("mouse");   // 首次加载高亮"鼠标"（默认即浏览模式，ICA 未做但需要）
             };
     }
@@ -243,6 +249,82 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
         double left = Math.Max(0, ActualWidth  - _placementRightMargin  - kx);
         double top  = Math.Max(0, ActualHeight - _placementBottomMargin - ky);
         ViewboxFloatingBar.Margin = new Thickness(left, top, -2000, -200);
+    }
+
+    // ────────── 拖动墨迹栏（把手，位置写回设置）──────────
+
+    private bool _barDragging;
+    private Point _barDragStart;
+    private double _barDragRight;
+    private double _barDragBottom;
+
+    private void FloatingBarGrip_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (Vm is not { } vm || sender is not IInputElement grip)
+            return;
+        _barDragging = true;
+        _barDragStart = e.GetPosition(this);
+        _barDragRight = vm.Settings.FloatingBarRightMargin;
+        _barDragBottom = vm.Settings.FloatingBarBottomMargin;
+        grip.CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void FloatingBarGrip_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_barDragging || Vm is not { } vm)
+            return;
+        var point = e.GetPosition(this);
+        vm.Settings.FloatingBarRightMargin = Math.Clamp(_barDragRight - (point.X - _barDragStart.X), 0, Math.Max(0, ActualWidth - 80));
+        vm.Settings.FloatingBarBottomMargin = Math.Clamp(_barDragBottom - (point.Y - _barDragStart.Y), 0, Math.Max(0, ActualHeight - 60));
+        _placementRightMargin = vm.Settings.FloatingBarRightMargin;
+        _placementBottomMargin = vm.Settings.FloatingBarBottomMargin;
+        ReapplyPlacement();
+        e.Handled = true;
+    }
+
+    private void FloatingBarGrip_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_barDragging)
+            return;
+        _barDragging = false;
+        (sender as IInputElement)?.ReleaseMouseCapture();
+        SaveInkOptions();   // 含 FloatingBar 边距一起存盘
+        e.Handled = true;
+    }
+
+    // ────────── 粗细快捷档与墨迹预览 ──────────
+
+    private void PenWidthPreset_MouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (Vm is not { } vm || sender is not FrameworkElement { Tag: string text })
+            return;
+        if (!double.TryParse(text, out var width))
+            return;
+        vm.InkTool.InkWidth = Math.Clamp(width, 0.5, 20);
+        SyncActiveTabControls();
+        UpdatePenPreview();
+        SaveInkOptions();
+        e.Handled = true;
+    }
+
+    /// <summary>预览曲线按当前画笔色与粗细重绘（两个页签各一条，隐藏的那条无副作用）。</summary>
+    private void UpdatePenPreview()
+    {
+        if (Vm is not { } vm)
+            return;
+        var ink = vm.InkTool;
+        double thickness = Math.Clamp(ink.InkWidth * (ink.InkType == InkPenType.Highlighter ? 2.2 : 1.0), 1, 24);
+        Brush brush = ink.InkColor > 100
+            ? new SolidColorBrush(ink.GetPenColor(ink.InkColor))
+            : new SolidColorBrush(ink.GetPenColor(ink.InkColor));
+        foreach (var path in new[] { PreviewPathHard, PreviewPathSoft })
+        {
+            if (path is null)
+                continue;
+            path.Stroke = brush;
+            path.StrokeThickness = thickness;
+        }
     }
 
     /// <summary>把当前墨迹选项写入内存：菜单记忆字段（墨迹类型/颜色/粗细/不透明度/亮暗系/多指书写）不入
@@ -960,68 +1042,41 @@ public void ApplyFloatBarText(bool show)
         UpdateBoardToolState("select");
     }
 
-    // ────────── 亮暗主题切换（移植 ICA ColorThemeSwitch_MouseUp + CheckColorTheme 色块/图标/文字部分）──────────
+    // ────────── 调色盘（11 色统一色板 + 自定义色 + 吸管取色）──────────
 
-    private void ColorThemeSwitch_MouseUp(object sender, MouseButtonEventArgs e)
+    /// <summary>刷新色块勾标（色块颜色由绑定自动跟随，这里只同步选中态）。</summary>
+    private void ApplyThemeToPalette()
     {
-        if (Vm is not { } vm)
+        if (Vm is { } vm)
+            vm.InkTool.SyncSwatchSelection(vm.InkTool.InkColor);
+    }
+
+    /// <summary>色块点击：11 色与自定义格都走这里（Tag 绑定索引）；自定义格打开色轮。</summary>
+    private void PenSwatch_MouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: int index })
             return;
-        vm.InkTool.IsUselightThemeColor = !vm.InkTool.IsUselightThemeColor;
-        ApplyThemeToPalette();
+        e.Handled = true;
+        if (index == InkToolViewModel.CustomColorIndex)
+        {
+            OpenCustomColorPicker();
+            return;
+        }
+        SetInkColor(index);
+        PopupFlyAnimator.FlyOut(PenPalette, PenPaletteRoot);
+    }
+
+    private void SetInkColor(int inkColor)
+    {
+        Vm?.InkTool.SetInkColor(inkColor);
+        Vm?.InkTool.SyncSwatchSelection(inkColor);
+        UpdateHighlighterCheckmarks(inkColor);
+        Vm?.InkTool.SetActiveTool(InkToolMode.Pen);
+        UpdateBoardToolState("color");
         SaveInkOptions();
     }
 
-    /// <summary>按当前主题重绘硬笔/软笔两套 9 色块 + 主题图标 + "亮系/暗系"文字 + 选中勾标（亮暗系全局共享）。</summary>
-    private void ApplyThemeToPalette()
-    {
-        if (Vm is not { } vm)
-            return;
-
-        var map = vm.InkTool.IsUselightThemeColor ? InkToolViewModel.PenLightColorMap : InkToolViewModel.PenDarkColorMap;
-        var swatchSets = new (int Key, Border? Hard, Border? Soft)[]
-        {
-            (0, BorderPenColorBlackHard, BorderPenColorBlackSoft),
-            (5, BorderPenColorWhiteHard, BorderPenColorWhiteSoft),
-            (1, BorderPenColorRedHard, BorderPenColorRedSoft),
-            (6, BorderPenColorPinkHard, BorderPenColorPinkSoft),
-            (8, BorderPenColorOrangeHard, BorderPenColorOrangeSoft),
-            (4, BorderPenColorYellowHard, BorderPenColorYellowSoft),
-            (2, BorderPenColorGreenHard, BorderPenColorGreenSoft),
-            (7, BorderPenColorTealHard, BorderPenColorTealSoft),
-            (3, BorderPenColorBlueHard, BorderPenColorBlueSoft),
-        };
-        foreach (var (key, hard, soft) in swatchSets)
-        {
-            if (map.TryGetValue(key, out var color))
-            {
-                if (hard != null)
-                    hard.Background = new SolidColorBrush(color);
-                if (soft != null)
-                    soft.Background = new SolidColorBrush(color);
-            }
-        }
-
-        bool light = vm.InkTool.IsUselightThemeColor;
-        ColorThemeSwitchIconHard.Glyph = light ? "\uE708" : "\uE706";
-        ColorThemeSwitchTextBlockHard.Text = light ? "暗系" : "亮系";
-        ColorThemeSwitchIconSoft.Glyph = light ? "\uE708" : "\uE706";
-        ColorThemeSwitchTextBlockSoft.Text = light ? "暗系" : "亮系";
-
-        UpdateInkColorCheckmarks(vm.InkTool.InkColor);
-    }
-
-    // ────────── 颜色选择（色块用 MouseUp，抄 ICA BtnColorXxx_MouseUp 语义）──────────
-
-    private void BtnColorBlack_Click(object sender, MouseButtonEventArgs e) => SetInkColor(0);
-    private void BtnColorWhite_Click(object sender, MouseButtonEventArgs e) => SetInkColor(5);
-    private void BtnColorRed_Click(object sender, MouseButtonEventArgs e) => SetInkColor(1);
-    private void BtnColorPink_Click(object sender, MouseButtonEventArgs e) => SetInkColor(6);
-    private void BtnColorOrange_Click(object sender, MouseButtonEventArgs e) => SetInkColor(8);
-    private void BtnColorYellow_Click(object sender, MouseButtonEventArgs e) => SetInkColor(4);
-    private void BtnColorGreen_Click(object sender, MouseButtonEventArgs e) => SetInkColor(2);
-    private void BtnColorTeal_Click(object sender, MouseButtonEventArgs e) => SetInkColor(7);
-    private void BtnColorBlue_Click(object sender, MouseButtonEventArgs e) => SetInkColor(3);
-
+    // 荧光笔 6 色（索引 101~106）
     private void BtnHighlighterColorRed_Click(object sender, MouseButtonEventArgs e) => SetInkColor(101);
     private void BtnHighlighterColorOrange_Click(object sender, MouseButtonEventArgs e) => SetInkColor(102);
     private void BtnHighlighterColorYellow_Click(object sender, MouseButtonEventArgs e) => SetInkColor(103);
@@ -1029,31 +1084,34 @@ public void ApplyFloatBarText(bool show)
     private void BtnHighlighterColorBlue_Click(object sender, MouseButtonEventArgs e) => SetInkColor(105);
     private void BtnHighlighterColorPurple_Click(object sender, MouseButtonEventArgs e) => SetInkColor(106);
 
-    /// <summary>设置墨迹颜色：切到批注模式 + 更新选中勾标 + 关闭墨迹菜单（点任意色块即关；亮暗切换不走此入口不关）。</summary>
-    private void SetInkColor(int inkColor)
+    /// <summary>自定义色：色轮选色（Carrot 取色器，与设置页同款）。</summary>
+    private void OpenCustomColorPicker()
     {
-        Vm?.InkTool.SetInkColor(inkColor);
-        UpdateInkColorCheckmarks(inkColor);
-        Vm?.InkTool.SetActiveTool(InkToolMode.Pen);
+        if (Vm is not { } vm)
+            return;
+        var dialog = new Carrot.UI.ColorPicker.ColorPickerDialog(vm.InkTool.CustomPenColor)
+        {
+            Title = "自定义颜色",
+            ButtonOKText = "确定",
+            ButtonCancelText = "取消",
+            Owner = Window.GetWindow(this),
+        };
+        if (dialog.ShowDialog() != true)
+            return;
+        var color = dialog.PickedColor;
+        vm.InkTool.SetCustomColor(color);
+        vm.Settings.PenCustomColor = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+        vm.InkTool.SetActiveTool(InkToolMode.Pen);
         UpdateBoardToolState("color");
         PopupFlyAnimator.FlyOut(PenPalette, PenPaletteRoot);
         SaveInkOptions();
     }
 
-    /// <summary>选中色显示勾标（checked-*.png），其余隐藏（硬笔/软笔两套色板同刷，当前页签外不可见无副作用）。</summary>
-    private void UpdateInkColorCheckmarks(int inkColor)
+    /// <summary>荧光笔 6 色的勾标（画笔色改由色块集合绑定，无需在此处理）。</summary>
+    private void UpdateHighlighterCheckmarks(int inkColor)
     {
         var map = new Dictionary<int, Viewbox?>
         {
-            [0] = ViewboxBtnColorBlackHardContent,
-            [5] = ViewboxBtnColorWhiteHardContent,
-            [1] = ViewboxBtnColorRedHardContent,
-            [6] = ViewboxBtnColorPinkHardContent,
-            [8] = ViewboxBtnColorOrangeHardContent,
-            [4] = ViewboxBtnColorYellowHardContent,
-            [2] = ViewboxBtnColorGreenHardContent,
-            [7] = ViewboxBtnColorTealHardContent,
-            [3] = ViewboxBtnColorBlueHardContent,
             [101] = ViewboxBtnHighlighterColorRedContent,
             [102] = ViewboxBtnHighlighterColorOrangeContent,
             [103] = ViewboxBtnHighlighterColorYellowContent,
@@ -1066,25 +1124,89 @@ public void ApplyFloatBarText(bool show)
             if (box != null)
                 box.Visibility = key == inkColor ? Visibility.Visible : Visibility.Collapsed;
         }
-        if (inkColor <= 100)   // 画笔色：软笔色板同步勾标
+    }
+
+    // ────────── 吸管取色（屏幕取色，专为覆盖页面文字用）──────────
+
+    private bool _isPicking;
+
+    private void EyedropperButton_MouseUp(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        StartEyedropper();
+    }
+
+    /// <summary>进入取色模式：全窗铺一层十字光标透明层，移动时实时预览屏幕颜色，左键确认、右键取消。</summary>
+    private void StartEyedropper()
+    {
+        _isPicking = true;
+        EyedropperLayer.Visibility = Visibility.Visible;
+        EyedropperLayer.MouseMove += EyedropperLayer_MouseMove;
+        EyedropperPreview.Visibility = Visibility.Visible;
+        Mouse.OverrideCursor = Cursors.Cross;
+        // Popup 菜单保持打开会影响取色范围：先收起菜单，保留取色层
+        PopupFlyAnimator.FlyOut(PenPalette, PenPaletteRoot);
+        Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+            EyedropperPreview.Visibility = Visibility.Visible));
+    }
+
+    private void StopEyedropper()
+    {
+        _isPicking = false;
+        EyedropperLayer.Visibility = Visibility.Collapsed;
+        EyedropperPreview.Visibility = Visibility.Collapsed;
+        Mouse.OverrideCursor = null;
+    }
+
+    private void EyedropperLayer_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_isPicking)
+            return;
+        var point = e.GetPosition(this);
+        EyedropperPreview.Margin = new Thickness(Math.Max(0, point.X + 14), Math.Max(0, point.Y + 14), 0, 0);
+        var color = SampleScreenColor();
+        EyedropperPreview.Background = new SolidColorBrush(color);
+    }
+
+    private void EyedropperLayer_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_isPicking)
+            return;
+        e.Handled = true;
+        var color = SampleScreenColor();
+        StopEyedropper();
+        if (Vm is { } vm)
         {
-            var softMap = new Dictionary<int, Viewbox?>
-            {
-                [0] = ViewboxBtnColorBlackSoftContent,
-                [5] = ViewboxBtnColorWhiteSoftContent,
-                [1] = ViewboxBtnColorRedSoftContent,
-                [6] = ViewboxBtnColorPinkSoftContent,
-                [8] = ViewboxBtnColorOrangeSoftContent,
-                [4] = ViewboxBtnColorYellowSoftContent,
-                [2] = ViewboxBtnColorGreenSoftContent,
-                [7] = ViewboxBtnColorTealSoftContent,
-                [3] = ViewboxBtnColorBlueSoftContent,
-            };
-            foreach (var (key, box) in softMap)
-            {
-                if (box != null)
-                    box.Visibility = key == inkColor ? Visibility.Visible : Visibility.Collapsed;
-            }
+            vm.InkTool.SetCustomColor(color);
+            vm.Settings.PenCustomColor = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+            vm.InkTool.SetActiveTool(InkToolMode.Pen);
+            UpdateBoardToolState("color");
+            SaveInkOptions();
+        }
+    }
+
+    private void EyedropperLayer_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        StopEyedropper();
+    }
+
+    /// <summary>取光标处屏幕像素（物理像素坐标，与 GetCursorPos 一致，不受 DPI 缩放影响）。</summary>
+    private static Color SampleScreenColor()
+    {
+        if (!NativeMethods.GetCursorPos(out var pt))
+            return Colors.Transparent;
+        IntPtr dc = NativeMethods.GetDC(IntPtr.Zero);
+        if (dc == IntPtr.Zero)
+            return Colors.Transparent;
+        try
+        {
+            uint pixel = NativeMethods.GetPixel(dc, pt.X, pt.Y);
+            return Color.FromRgb((byte)(pixel & 0xFF), (byte)((pixel >> 8) & 0xFF), (byte)((pixel >> 16) & 0xFF));
+        }
+        finally
+        {
+            NativeMethods.ReleaseDC(IntPtr.Zero, dc);
         }
     }
 

@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Ink;
@@ -219,6 +220,170 @@ public sealed class InkToolViewModel : ViewModelBase
         [106] = Color.FromRgb(147, 51, 234)    // 紫
     };
 
+    /// <summary>11 色统一画笔色板（原亮/暗两套合并：两套里几乎相同的色只留一个，再补紫与灰）。
+    /// 索引与历史设置兼容：0 黑 / 1 红 / 2 绿 / 3 蓝 / 4 黄 / 5 白 / 6 粉 / 7 青 / 8 橙；9 紫 / 10 灰为新增。</summary>
+    public static readonly Dictionary<int, Color> PenColorMap = new()
+    {
+        [0] = Colors.Black,                       // 黑
+        [1] = Color.FromRgb(220, 38, 38),         // 红
+        [2] = Color.FromRgb(58, 125, 2),          // 绿
+        [3] = Color.FromRgb(14, 111, 168),        // 蓝
+        [4] = Color.FromRgb(234, 179, 8),         // 黄
+        [5] = Colors.White,                       // 白
+        [6] = Color.FromRgb(166, 35, 140),        // 粉
+        [7] = Color.FromRgb(20, 161, 168),        // 青
+        [8] = Color.FromRgb(234, 88, 12),         // 橙
+        [9] = Color.FromRgb(124, 58, 237),        // 紫
+        [10] = Color.FromRgb(96, 100, 108)        // 灰
+    };
+
+    /// <summary>自定义色槽位索引（色轮与吸管取到的颜色都落到这一格）。</summary>
+    public const int CustomColorIndex = 11;
+
+    /// <summary>调色盘色块：硬笔/软笔两页签共用同一集合，选中勾标天然同步。</summary>
+    public sealed class PenSwatch : System.ComponentModel.INotifyPropertyChanged
+    {
+        public PenSwatch(int index, Color color, bool isCustom = false)
+        {
+            Index = index;
+            IsCustom = isCustom;
+            Color = color;
+            Brush = CreateBrush(color);
+        }
+
+        public int Index { get; }
+
+        /// <summary>自定义色格（索引 11）：除了色块还显示色轮图标与吸管角标。</summary>
+        public bool IsCustom { get; }
+
+        private Color _color;
+        public Color Color
+        {
+            get => _color;
+            private set => _color = value;
+        }
+
+        private Brush _brush = Brushes.Transparent;
+        public Brush Brush
+        {
+            get => _brush;
+            private set
+            {
+                _brush = value;
+                PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(Brush)));
+            }
+        }
+
+        /// <summary>自定义色变化时刷新色块底色（其余色块不动）。</summary>
+        public void SetColor(Color color)
+        {
+            if (_color == color)
+                return;
+            Color = color;
+            Brush = CreateBrush(color);
+        }
+
+        private static Brush CreateBrush(Color color)
+        {
+            var brush = new SolidColorBrush(color);
+            brush.Freeze();
+            return brush;
+        }
+
+        private bool _isSelected;
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set
+            {
+                if (_isSelected == value)
+                    return;
+                _isSelected = value;
+                PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(IsSelected)));
+            }
+        }
+
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+    }
+
+    /// <summary>11 色色块（0~10）。</summary>
+    public ObservableCollection<PenSwatch> PenSwatches { get; } = BuildSwatches();
+
+    private static ObservableCollection<PenSwatch> BuildSwatches()
+    {
+        var list = new ObservableCollection<PenSwatch>();
+        for (int i = 0; i <= 10; i++)
+            if (PenColorMap.TryGetValue(i, out var color))
+                list.Add(new PenSwatch(i, color));
+        list.Add(new PenSwatch(CustomColorIndex, Color.FromRgb(124, 58, 237), isCustom: true));
+        return list;
+    }
+
+    private Color _customPenColor = Color.FromRgb(124, 58, 237);
+
+    /// <summary>自定义画笔色（索引 11）：色轮与吸管取色都写到这里。</summary>
+    public Color CustomPenColor
+    {
+        get => _customPenColor;
+        set
+        {
+            if (_customPenColor == value)
+                return;
+            _customPenColor = value;
+            OnPropertyChanged(nameof(CustomPenColor));
+            OnPropertyChanged(nameof(CustomPenColorBrush));
+            foreach (var swatch in PenSwatches)
+                if (swatch.Index == CustomColorIndex)
+                    swatch.SetColor(value);
+            if (InkColor == CustomColorIndex)
+                ApplyCurrentColor();
+        }
+    }
+
+    /// <summary>自定义色的画刷（色块背景绑定）。</summary>
+    public Brush CustomPenColorBrush
+    {
+        get
+        {
+            var brush = new SolidColorBrush(_customPenColor);
+            brush.Freeze();
+            return brush;
+        }
+    }
+
+    /// <summary>自定义色格是否处于选中态。</summary>
+    public bool CustomIsSelected => InkColor == CustomColorIndex;
+
+    /// <summary>索引 → 实际颜色（11 = 自定义色）。</summary>
+    public Color GetPenColor(int index)
+        => index == CustomColorIndex
+            ? _customPenColor
+            : PenColorMap.TryGetValue(index, out var color) ? color : Colors.Black;
+
+    /// <summary>是否合法画笔色索引（0~10，或自定义 11）。</summary>
+    public static bool IsPenColorIndex(int index) => index == CustomColorIndex || PenColorMap.ContainsKey(index);
+
+    /// <summary>写自定义色并切到该格（色轮 / 吸管）。</summary>
+    public void SetCustomColor(Color color)
+    {
+        _customPenColor = color;
+        OnPropertyChanged(nameof(CustomPenColor));
+        OnPropertyChanged(nameof(CustomPenColorBrush));
+        foreach (var swatch in PenSwatches)
+            if (swatch.Index == CustomColorIndex)
+                swatch.SetColor(color);
+        if (InkType != InkPenType.Highlighter)
+            SetInkColor(CustomColorIndex);
+    }
+
+    /// <summary>刷新色块勾标（选中态唯一入口）。</summary>
+    public void SyncSwatchSelection(int inkColor)
+    {
+        foreach (var swatch in PenSwatches)
+            swatch.IsSelected = swatch.Index == inkColor;
+        OnPropertyChanged(nameof(CustomIsSelected));
+    }
+
     private int _inkColor = 1;   // 默认红（对齐 ICA inkColor 默认）
 
     /// <summary>当前墨迹颜色索引：0~8 画笔色，101~106 荧光笔色。</summary>
@@ -263,7 +428,7 @@ public sealed class InkToolViewModel : ViewModelBase
             case InkPenType.Hard:
             case InkPenType.Soft:
                 InkWidth = Math.Clamp(_penWidth, 0.5, 20);
-                SetInkColor(PenLightColorMap.ContainsKey(_penColor) ? _penColor : 1);
+                SetInkColor(IsPenColorIndex(_penColor) ? _penColor : 1);
                 break;
             case InkPenType.Highlighter:
                 InkWidth = Math.Clamp(_highlighterWidth, 0.5, 20);
@@ -276,7 +441,14 @@ public sealed class InkToolViewModel : ViewModelBase
     /// <summary>启动恢复：把持久化设置装入各类型存储，并按记忆的页签类型装入活动值（替代逐项恢复）。</summary>
     public void LoadFromSettings(AppSettings s)
     {
-        _penColor = PenLightColorMap.ContainsKey(s.PenColor) ? s.PenColor : 1;
+        _penColor = IsPenColorIndex(s.PenColor) ? s.PenColor : 1;
+        if (TryParseColor(s.PenCustomColor, out var custom))
+            _customPenColor = custom;
+        foreach (var swatch in PenSwatches)
+            if (swatch.Index == CustomColorIndex)
+                swatch.SetColor(_customPenColor);
+        OnPropertyChanged(nameof(CustomPenColor));
+        OnPropertyChanged(nameof(CustomPenColorBrush));
         _penWidth = Math.Clamp(s.PenWidth, 0.5, 20);
         _highlighterColor = HighlighterColorMap.ContainsKey(s.HighlighterColor) ? s.HighlighterColor : 103;
         _highlighterWidth = Math.Clamp(s.HighlighterWidth, 0.5, 20);
@@ -422,7 +594,7 @@ public sealed class InkToolViewModel : ViewModelBase
         }
         else
         {
-            da.Color = (IsUselightThemeColor ? PenLightColorMap : PenDarkColorMap)[InkColor];
+            da.Color = GetPenColor(InkColor);
             da.IsHighlighter = false;
             da.IgnorePressure = false;  // Clone 会带走上一次荧光笔的值，复位为 WPF 默认（跟随压感）
             da.StylusTip = StylusTip.Ellipse;   // 复位为 WPF 默认圆点笔尖
@@ -444,7 +616,7 @@ public sealed class InkToolViewModel : ViewModelBase
     /// <summary>切换墨迹颜色（0~8 画笔色 / 101~106 荧光笔色），并按当前墨迹类型写入对应记忆存储。</summary>
     public void SetInkColor(int inkColor)
     {
-        if (!PenLightColorMap.ContainsKey(inkColor) && !HighlighterColorMap.ContainsKey(inkColor))
+        if (!IsPenColorIndex(inkColor) && !HighlighterColorMap.ContainsKey(inkColor))
             return;
         switch (InkType)
         {
@@ -454,6 +626,24 @@ public sealed class InkToolViewModel : ViewModelBase
         }
         InkColor = inkColor;
         ApplyCurrentColor();
+        SyncSwatchSelection(inkColor);
+    }
+
+    /// <summary>解析 "#RRGGBB" / "#AARRGGBB" 字符串（设置里的自定义色以文本持久化）。</summary>
+    public static bool TryParseColor(string? text, out Color color)
+    {
+        color = default;
+        if (string.IsNullOrWhiteSpace(text))
+            return false;
+        try
+        {
+            color = (Color)ColorConverter.ConvertFromString(text.Trim());
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     // ══════════ 工具切换命令 ══════════
