@@ -1,6 +1,6 @@
 name: Build and Release
 
-# 临时模式：拉取 0.1.24 补丁、应用到 main 并提交。
+# 只在 workflow 自身变更时触发（日常提交不打包）；也支持在 Actions 页面手动 Run workflow。
 on:
   push:
     branches: [main]
@@ -12,23 +12,43 @@ permissions:
   contents: write
 
 jobs:
-  apply:
-    runs-on: ubuntu-latest
+  release:
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Apply 0.1.24 patch
+      - name: Cleanup temp apply files
+        shell: pwsh
         run: |
-          set -x
-          curl -fsSL -o /tmp/p024c.patch "https://aka.doubaocdn.com/s/uUUx4sNYwr"
-          echo "6afe60b1ca22f650d55e448e84ca4da8edbf333db9f5cb1e97bb88021cd87cd3  /tmp/p024c.patch" | sha256sum -c
-          git apply --whitespace=nowarn /tmp/p024c.patch
-          git status --short
+          git rm -f .github/workflows/apply-024.yml notes/apply-0.1.24.md 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            git config user.name "school-tools-bot"
+            git config user.email "bot@users.noreply.github.com"
+            git commit -m "chore: remove temp apply files"
+            git push
+          } else { echo "nothing to clean" }
 
-      - name: Commit and push
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish win-x64 (self-contained)
+        run: dotnet publish SCHOOL_PDF/SCHOOL_TOOLS_PDF.csproj -c Release -r win-x64 --self-contained
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Compile installer
+        # CI 里的 choco 包不带 Languages 语言包，用 /DUseEnglishOnly=1 走英文向导（本地编译仍默认中文）
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DArch=x64 /DUseEnglishOnly=1 SCHOOL_PDF\installer.iss'
+
+      - name: Create or update release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config user.name "school-tools-bot"
-          git config user.email "bot@users.noreply.github.com"
-          git add -A
-          git commit -m "feat: 0.1.24 UInk 1.1 spec ink exchange"
-          git push
+          gh release view v0.1.24 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create v0.1.24 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" --title "v0.1.24 UInk 1.1" --notes "UInk 1.1 spec ink exchange"
+          } else {
+            gh release upload v0.1.24 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" --clobber
+          }
