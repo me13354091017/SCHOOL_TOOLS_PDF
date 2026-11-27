@@ -1,6 +1,6 @@
 name: Build and Release
 
-# 临时模式：拉取 0.1.24 补丁、应用到 main 并提交。on: *
+# 临时模式：拉取 0.1.24 补丁、应用到 main 并提交。
 on:
   push:
     branches: [main]
