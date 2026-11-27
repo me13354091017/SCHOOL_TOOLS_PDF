@@ -1,6 +1,6 @@
 name: Build and Release
 
-# 只在 workflow 自身变更时触发（日常提交不打包）；也支持在 Actions 页面手动 Run workflow。
+# 临时模式：拉取 0.1.24 补丁、应用到 main 并提交，随后把本文件回写为构建模式。
 on:
   push:
     branches: [main]
@@ -12,37 +12,23 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    runs-on: windows-latest
+  apply:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Apply 0.1.24 patch
-        shell: pwsh
         run: |
-          curl.exe -fsSL -o patch024.patch "https://aka.doubaocdn.com/s/Ukumsyg79b"
-          $h = (Get-FileHash patch024.patch -Algorithm SHA256).Hash.ToLower()
-          if ($h -ne "f87a1b4e402a0da47a07691960c8ac779d6a8fffb275f2973e362bc96af33e0a") { throw "patch hash mismatch: $h" }
-          git apply --whitespace=nowarn patch024.patch
+          set -x
+          curl -fsSL -o /tmp/p024b.patch "https://aka.doubaocdn.com/s/u0FLEtnUoV"
+          echo "2d78081add268824e5d9d3568f432995e7e2b9001402e44b6964c02062ed4d67  /tmp/p024b.patch" | sha256sum -c
+          git apply --whitespace=nowarn /tmp/p024b.patch
           git status --short
 
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '10.0.x'
-
-      - name: Publish win-x64 (self-contained)
-        run: dotnet publish SCHOOL_PDF/SCHOOL_TOOLS_PDF.csproj -c Release -r win-x64 --self-contained
-
-      - name: Install Inno Setup
-        run: choco install innosetup --no-progress -y
-
-      - name: Compile installer
-        # CI 里的 choco 包不带 Languages 语言包，用 /DUseEnglishOnly=1 走英文向导（本地编译仍默认中文）
-        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DArch=x64 /DUseEnglishOnly=1 SCHOOL_PDF\installer.iss'
-
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit and push
         run: |
-          gh release create v0.1.24 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" `
-            --title "v0.1.24 UInk 1.1 规范墨迹交换" `
-            --notes "本次更新：把导入导出彻底换成了真正的 UInk 1.1 Beta 公开规范实现。主文件 .uink 不再是我们自编的 JSON，而是规范要求的 MessagePack 对象流：开头是 Header（版本号 11、设备数、工作区数、页数、时间），随后是 Header Extension（登记一个 Display 设备和一个白板工作区），再往后每页一个 Canvas（含 pageGuid、pageIndex、页码、图层号、白色背景与视口），每条笔画一个 Ink 块（inkType、颜色、透明度、纹理、逐点坐标与宽度，荧光笔按规范写成 nib 矩形笔尖 1:8）。笔迹的压感被烘焙进每个点的宽度，首点写绝对坐标、其余写相对位移，坐标精度与规范一致。导出时整份文档每页都会写一个 Canvas，空白页也在，这样在别的软件里打开页码是连续的。读取端按规范做容错：同一个 pageGuid 后出现的整体替代前面的，认不出的块类型直接跳过，遇到 Clear 块清空该页，文件尾部不完整就丢弃最后一个对象并停下，中间损坏则保留已读部分，不会因为一个坏块整份丢失。浮动栏更多菜单里的导出 UInk 和导入 UInk 已改为按字节读写，文件扩展名仍是 .uink，和智绘教 Inkeys、ICC-CE 属于同一套格式，可以互相打开。本版声明写入基础级、读取标准级；图形与图片块暂时只跳过不画，字迹不受影响。其余功能与 0.1.23 一致。"
+          git config user.name "school-tools-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: 0.1.24 UInk 1.1 spec ink exchange"
+          git push
