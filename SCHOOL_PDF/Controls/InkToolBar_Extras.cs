@@ -300,8 +300,8 @@ public partial class InkToolBar
         {
             try
             {
-                File.WriteAllText(dialog.FileName, UInkSerializer.Build(vm.Pages, vm.PdfName));
-                ShowHint($"已导出 {strokeCount} 笔墨迹。", "导出 UInk");
+                File.WriteAllBytes(dialog.FileName, UInkSerializer.Build(vm.Pages, vm.PdfName));
+                ShowHint($"已导出 {strokeCount} 笔墨迹（{UInkSerializer.WriteLevelText}，Inkeys / ICC-CE 可直接打开）。", "导出 UInk");
             }
             catch (Exception ex)
             {
@@ -326,19 +326,19 @@ public partial class InkToolBar
         };
         if (dialog.ShowDialog() != true)
             return;
-        string text;
+        byte[] data;
         try
         {
-            text = File.ReadAllText(dialog.FileName);
+            data = File.ReadAllBytes(dialog.FileName);
         }
         catch (Exception ex)
         {
             ShowHint("读不出这个文件：" + ex.Message, "导入 UInk");
             return;
         }
-        var result = UInkSerializer.Apply(text, vm.Pages);
+        var result = UInkSerializer.Apply(data, vm.Pages);
         ShowHint(result.Ok
-            ? $"导入完成：{result.PageCount} 页、{result.StrokeCount} 笔墨迹。"
+            ? $"导入完成：{result.PageCount} 页、{result.StrokeCount} 笔墨迹（{UInkSerializer.ReadLevelText}）{result.Note}"
             : "导入失败：" + result.Error, "导入 UInk");
     }
 

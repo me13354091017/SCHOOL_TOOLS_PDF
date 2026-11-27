@@ -2,7 +2,7 @@
 
 面向课堂讲授与教学资料批注的 Windows PDF 应用——阅读、手写、标注在同一套工作流里完成，讲解时的圈画、公式推演与图形示意不必再切换到另一款白板工具。
 
-当前版本 **v0.1.23（激光笔与 UInk 墨迹交换）** ｜ Windows 10 19041+ ｜ .NET 10 ｜ WPF + PDFium + WinRT Ink
+当前版本 **v0.1.24（UInk 1.1 规范墨迹交换）** ｜ Windows 10 19041+ ｜ .NET 10 ｜ WPF + PDFium + WinRT Ink
 
 ## 功能
 
@@ -41,7 +41,8 @@
 
 | 版本 | 内容 |
 | --- | --- |
-| **v0.1.23** | 激光笔（只出光不落墨）、UInk 墨迹导入导出（.uink）、误迹查杀（DDB）、智能擦、页级懒加载挂起、Fluent 圆角与弹层阴影 |
+| **v0.1.24** | UInk 导入导出按 UInk 1.1 Beta 公开规范重写：主文件 `.uink` 为 MessagePack 对象流（Header + Canvas + Ink），声明写入基础级、读取标准级，可与智绘教 Inkeys、ICC-CE 直接互导 |
+| **v0.1.23** | 激光笔（只出光不落墨）、误迹查杀（DDB）、智能擦、页级懒加载挂起、Fluent 圆角与弹层阴影 |
 | **v0.1.22** | 调色盘重做：11 色统一色板（去掉亮/暗系）、自定义色轮、吸管取色、粗细三档与墨迹预览、墨迹栏可拖动 |
 | v0.1.21 | 修复点浮动栏按钮时原地出墨点：整笔落在浮动栏范围内的墨迹即时丢弃 |
 | v0.1.20 | 隐藏全部滚动条（阅读区、缩略图、设置页、更新日志与错误窗口） |
@@ -55,8 +56,8 @@
 
 ## 下载
 
-- 安装包：[SCHOOL_TOOLS_PDF_x64_setup.exe](https://github.com/me13354091017/SCHOOL_TOOLS_PDF/releases/download/v0.1.23/SCHOOL_TOOLS_PDF_x64_setup.exe)
-- 免安装压缩包：[GitHub Release v0.1.23](https://github.com/me13354091017/SCHOOL_TOOLS_PDF/releases/tag/v0.1.23)
+- 安装包：[SCHOOL_TOOLS_PDF_x64_setup.exe](https://github.com/me13354091017/SCHOOL_TOOLS_PDF/releases/download/v0.1.24/SCHOOL_TOOLS_PDF_x64_setup.exe)
+- 免安装压缩包：[GitHub Release v0.1.24](https://github.com/me13354091017/SCHOOL_TOOLS_PDF/releases/tag/v0.1.24)
 
 ## 仓库结构
 

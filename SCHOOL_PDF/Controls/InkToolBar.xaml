@@ -1179,7 +1179,7 @@
                                         </Border>
                                         <Border Padding="10,6,10,8">
                                             <TextBlock FontSize="11" TextWrapping="Wrap" MaxWidth="190" Foreground="{DynamicResource FloatBarForeground}" Opacity="0.62"
-                                                Text="UInk 是本应用自己的墨迹交换格式（.uink，JSON 文本），换机器搬批注用它。误迹查杀只删极小孤立墨点。" />
+                                                Text="UInk 是开放的墨迹文件规范（.uink，MessagePack 对象流，Inkeys 与 ICC-CE 通用），换软件搬批注用它。误迹查杀只删极小孤立墨点。" />
                                         </Border>
                                     </ikw:SimpleStackPanel>
                                 </Border>
