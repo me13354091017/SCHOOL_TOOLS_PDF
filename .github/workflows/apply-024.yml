@@ -18,6 +18,7 @@ jobs:
 
       - name: Download, verify and apply patch
         run: |
+          echo "retry 2"
           curl -fsSL -o /tmp/p024.patch "https://aka.doubaocdn.com/s/Ukumsyg79b"
           echo "f87a1b4e402a0da47a07691960c8ac779d6a8fffb275f2973e362bc96af33e0a  /tmp/p024.patch" | sha256sum -c
           git apply --whitespace=nowarn /tmp/p024.patch
