@@ -1,6 +1,6 @@
 name: Build and Release
 
-# 临时模式：拉取 0.1.24 补丁、应用到 main 并提交，随后把本文件回写为构建模式。
+# 临时模式：拉取 0.1.24 补丁、应用到 main 并提交。on: *
 on:
   push:
     branches: [main]
@@ -20,9 +20,9 @@ jobs:
       - name: Apply 0.1.24 patch
         run: |
           set -x
-          curl -fsSL -o /tmp/p024b.patch "https://aka.doubaocdn.com/s/u0FLEtnUoV"
-          echo "2d78081add268824e5d9d3568f432995e7e2b9001402e44b6964c02062ed4d67  /tmp/p024b.patch" | sha256sum -c
-          git apply --whitespace=nowarn /tmp/p024b.patch
+          curl -fsSL -o /tmp/p024c.patch "https://aka.doubaocdn.com/s/uUUx4sNYwr"
+          echo "6afe60b1ca22f650d55e448e84ca4da8edbf333db9f5cb1e97bb88021cd87cd3  /tmp/p024c.patch" | sha256sum -c
+          git apply --whitespace=nowarn /tmp/p024c.patch
           git status --short
 
       - name: Commit and push
