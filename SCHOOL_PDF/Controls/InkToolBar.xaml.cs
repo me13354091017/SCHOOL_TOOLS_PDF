@@ -253,7 +253,7 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
 
     // ────────── 拖动块 + 栏：定位 / 收起展开 / 撞墙换向 / 预设位置吸附 ──────────
 
-    private const double HandleSize = 36;      // 拖动块边长（与 XAML Width/Height 一致）
+    private const double HandleSize = 46;      // 拖动块边长（与 XAML Width/Height 一致）
     private const double HandleGap = 8;        // 拖动块与栏之间的空隙
     private const double EdgeMargin = 8;       // 贴边最小留白
     private const double SnapDistance = 24;    // 距预设位置多近开始提示并吸附
@@ -387,6 +387,7 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
     /// <summary>单击拖动块：收起 / 展开整条栏。</summary>
     internal void ToggleBarCollapsed()
     {
+        _edgeAutoHidden = false;         // 用户手动收起/展开：解除贴边自动隐藏
         _barCollapsed = !_barCollapsed;
         if (!_barCollapsed)   // 展开前按当前窗口重摆一次，避免窗口改过大小后滑出空档
             ReapplyPlacement();
@@ -397,6 +398,8 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
 
     private bool _barDragging;
     private bool _barMoved;
+    private bool _edgeAutoHidden;          // 贴边自动隐藏中（鼠标移入拖动块自动展开）
+    private DispatcherTimer? _edgeHideTimer;
     private Point _barDragStart;
     private double _barDragRight0;
     private double _barDragBottom0;
@@ -457,7 +460,83 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
         if (IsNearPreset())
             SnapToPreset();
         PersistPlacement();
+        MaybeEdgeAutoHide();
         e.Handled = true;
+    }
+
+    /// <summary>贴边自动隐藏（借鉴希沃白板）：整条栏拖到窗口左/右边缘 12 像素内，松手即收起成拖动块，
+    /// 鼠标移到拖动块上自动展开，移开 700 毫秒再收起。</summary>
+    private void MaybeEdgeAutoHide()
+    {
+        double leftGap = ActualWidth - _placementRightMargin - (HandleSize + HandleGap + _barW);
+        bool nearEdge = _placementRightMargin <= 12 || leftGap <= 12;
+        _edgeAutoHidden = nearEdge;
+        if (!nearEdge)
+            return;
+        if (!_barCollapsed)
+        {
+            _barCollapsed = true;
+            ApplyCollapsedVisual(animate: true);
+        }
+    }
+
+    private void FloatingBarHandle_MouseEnter(object sender, MouseEventArgs e)
+    {
+        if (!_edgeAutoHidden)
+            return;
+        _edgeHideTimer?.Stop();
+        _edgeHideTimer = null;
+        if (_barCollapsed)
+        {
+            _barCollapsed = false;
+            ApplyCollapsedVisual(animate: true);
+        }
+    }
+
+    private void FloatingBarHandle_MouseLeave(object sender, MouseEventArgs e) => ScheduleEdgeAutoHide();
+
+    private void BorderFloatingBarMainControls_MouseLeave(object sender, MouseEventArgs e) => ScheduleEdgeAutoHide();
+
+    private void ScheduleEdgeAutoHide()
+    {
+        if (!_edgeAutoHidden)
+            return;
+        _edgeHideTimer?.Stop();
+        _edgeHideTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(700) };
+        _edgeHideTimer.Tick += (_, _) =>
+        {
+            _edgeHideTimer!.Stop();
+            _edgeHideTimer = null;
+            if (!_edgeAutoHidden || _barCollapsed)
+                return;
+            if (FloatingBarHandle.IsMouseOver || BorderFloatingBarMainControls.IsMouseOver)
+                return;
+            _barCollapsed = true;
+            ApplyCollapsedVisual(animate: true);
+        };
+        _edgeHideTimer.Start();
+    }
+
+    /// <summary>双击栏体空白处收起（借鉴 ICCCE：栏面双击折叠）；点在工具按钮上不触发。</summary>
+    private void BorderFloatingBarMainControls_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount != 2 || _barCollapsed || IsInsideToolButton(e.OriginalSource, sender))
+            return;
+        ToggleBarCollapsed();
+        e.Handled = true;
+    }
+
+    private static bool IsInsideToolButton(object? source, object stop)
+    {
+        var node = source as DependencyObject;
+        while (node != null && node != stop)
+        {
+            if (node is ButtonBase)
+                return true;
+            node = node is Visual visual ? VisualTreeHelper.GetParent(visual)
+                                         : (node as FrameworkElement)?.Parent;
+        }
+        return false;
     }
 
     /// <summary>把当前位置写回设置并落盘（拖动结束/吸附完成时调用）。</summary>

@@ -23,7 +23,7 @@
     <Grid>
         <Viewbox
             Name="ViewboxFloatingBar"
-            Height="50"
+            Height="46"
             Margin="100,0,-2000,-200"
             HorizontalAlignment="Left" VerticalAlignment="Top">
             <Viewbox.LayoutTransform>
@@ -63,33 +63,35 @@
                 </ikw:SimpleStackPanel.Resources>
                 <Border
                     Name="BorderFloatingBarMainControls"
-                    Height="36"
+                    Height="40"
                     Margin="2,0,0,0"
-                    Padding="1"
+                    Padding="3"
                     Background="{DynamicResource FloatBarBackground}"
                     BorderBrush="{DynamicResource FloatBarBorderBrush}"
                     BorderThickness="1"
-                    CornerRadius="8"
+                    CornerRadius="12"
+                    MouseLeftButtonDown="BorderFloatingBarMainControls_MouseLeftButtonDown"
+                    MouseLeave="BorderFloatingBarMainControls_MouseLeave"
                     Visibility="Visible">
                     <Border.Effect>
-                        <DropShadowEffect BlurRadius="14" Opacity="0.16" ShadowDepth="3" Direction="270" />
+                        <DropShadowEffect BlurRadius="22" Opacity="0.18" ShadowDepth="4" Direction="270" />
                     </Border.Effect>
                     <ikw:SimpleStackPanel Name="StackPanelFloatingBar" Orientation="Horizontal">
                         <Button x:Name="BtnMouse"
-                            Width="30"
-                            Height="32"
+                            Width="34"
+                            Height="34"
                             Padding="0"
                             BorderThickness="0"
                             Click="CursorIcon_Click"
                             MouseEnter="ToolButton_MouseEnter" MouseLeave="ToolButton_MouseLeave">
-                            <Border x:Name="MouseCheckBorder" Width="30" Height="32"
+                            <Border x:Name="MouseCheckBorder" Width="34" Height="34"
                                 HorizontalAlignment="Center" VerticalAlignment="Center"
                                 CornerRadius="7" Background="Transparent" Opacity="1">
                                 <Grid>
                                     <Border x:Name="MouseHoverOverlay" Background="Transparent" Visibility="Collapsed" CornerRadius="5" />
                                     <ikw:SimpleStackPanel Name="Mouse_Icon" Width="28" HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent" Orientation="Vertical">
                                         <ui:FontIcon x:Name="Icon_Mouse"
-                                                Width="30"
+                                                Width="34"
                                                 Height="22"
                                                 FontFamily="{StaticResource FluentIconFontFamily}"
                                                 FontSize="16"
@@ -103,34 +105,34 @@
                                             Text="鼠标"
                                             TextAlignment="Center" />
                                     </ikw:SimpleStackPanel>
-                                    <Border x:Name="MouseAccentPill" Width="13" Height="3" CornerRadius="1.5"
+                                    <Border x:Name="MouseAccentPill" Width="15" Height="3" CornerRadius="1.5"
                                         HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,1"
                                         Background="{DynamicResource {x:Static ui:ThemeKeys.AccentFillColorDefaultBrushKey}}" Visibility="Collapsed" />
                                 </Grid>
                             </Border>
                         </Button>
                         <Button x:Name="BtnPen"
-                            Width="30"
-                            Height="32"
+                            Width="34"
+                            Height="34"
                             Margin="2,0,0,0"
                             Padding="0"
                             BorderThickness="0"
                             Click="PenIcon_Click"
                             MouseEnter="ToolButton_MouseEnter" MouseLeave="ToolButton_MouseLeave">
-                            <Border x:Name="PenCheckBorder" Width="30" Height="32"
+                            <Border x:Name="PenCheckBorder" Width="34" Height="34"
                                 HorizontalAlignment="Center" VerticalAlignment="Center"
                                 CornerRadius="7" Background="Transparent" Opacity="1">
                                 <Grid>
                                     <Border x:Name="PenHoverOverlay" Background="Transparent" Visibility="Collapsed" CornerRadius="5" />
                                     <ikw:SimpleStackPanel
                                         Name="Pen_Icon"
-                                        Width="30"
+                                        Width="34"
                                         HorizontalAlignment="Center"
                                         VerticalAlignment="Center"
                                         Background="Transparent"
                                         Orientation="Vertical">
                                         <ui:FontIcon x:Name="Icon_Pen"
-                                            Width="30"
+                                            Width="34"
                                             Height="22"
                                             FontFamily="{StaticResource FluentIconFontFamily}"
                                             FontSize="16"
@@ -144,7 +146,7 @@
                                             TextAlignment="Center"
                                             Visibility="{Binding ElementName=FloatBarSelectIconTextBlock, Path=Visibility}" />
                                     </ikw:SimpleStackPanel>
-                                    <Border x:Name="PenAccentPill" Width="13" Height="3" CornerRadius="1.5"
+                                    <Border x:Name="PenAccentPill" Width="15" Height="3" CornerRadius="1.5"
                                         HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,1"
                                         Background="{DynamicResource {x:Static ui:ThemeKeys.AccentFillColorDefaultBrushKey}}" Visibility="Collapsed" />
                                 </Grid>
@@ -259,7 +261,7 @@
                                                     <Path
                                                         x:Name="PreviewPathHard"
                                                         Width="220"
-                                                        Height="32"
+                                                        Height="34"
                                                         Data="M 4,24 C 26,4 52,32 84,17 C 116,2 146,30 178,16 C 194,9 206,12 216,15"
                                                         Stroke="Black"
                                                         StrokeThickness="5"
@@ -416,7 +418,7 @@
                                                     <Path
                                                         x:Name="PreviewPathSoft"
                                                         Width="220"
-                                                        Height="32"
+                                                        Height="34"
                                                         Data="M 4,24 C 26,4 52,32 84,17 C 116,2 146,30 178,16 C 194,9 206,12 216,15"
                                                         Stroke="Black"
                                                         StrokeThickness="5"
@@ -812,21 +814,21 @@
                                 </Border>
                             </Popup>
                             <Button x:Name="BtnEraser"
-                                Width="30"
-                                Height="32"
+                                Width="34"
+                                Height="34"
                                 Margin="2,0,0,0"
                                 Padding="0"
                                 BorderThickness="0"
                                 Click="EraserIcon_Click"
                                 MouseEnter="ToolButton_MouseEnter" MouseLeave="ToolButton_MouseLeave">
-                                <Border x:Name="EraserCheckBorder" Width="30" Height="32"
+                                <Border x:Name="EraserCheckBorder" Width="34" Height="34"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"
                                     CornerRadius="7" Background="Transparent" Opacity="1">
                                     <Grid>
                                         <Border x:Name="EraserHoverOverlay" Background="Transparent" Visibility="Collapsed" CornerRadius="5" />
                                         <ikw:SimpleStackPanel Name="Eraser_Icon" HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent" Orientation="Vertical">
                                             <ui:FontIcon x:Name="Icon_Eraser1"
-                                                Width="30"
+                                                Width="34"
                                                 Height="22"
                                                 FontFamily="{StaticResource FluentIconFontFamily}"
                                                 FontSize="16"
@@ -840,7 +842,7 @@
                                                 TextAlignment="Center"
                                                 Visibility="{Binding ElementName=FloatBarSelectIconTextBlock, Path=Visibility}" />
                                         </ikw:SimpleStackPanel>
-                                        <Border x:Name="EraserAccentPill" Width="13" Height="3" CornerRadius="1.5"
+                                        <Border x:Name="EraserAccentPill" Width="15" Height="3" CornerRadius="1.5"
                                             HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,1"
                                             Background="{DynamicResource {x:Static ui:ThemeKeys.AccentFillColorDefaultBrushKey}}" Visibility="Collapsed" />
                                     </Grid>
@@ -848,21 +850,21 @@
                             </Button>
                             <!--  "选择"按钮（ICA 屏幕浮动栏 SymbolIconSelect 逐字复制：图标 e958+f8af+"选择"，外套本栏按钮结构）  -->
                             <Button x:Name="BtnSelect"
-                                Width="30"
-                                Height="32"
+                                Width="34"
+                                Height="34"
                                 Margin="2,0,0,0"
                                 Padding="0"
                                 BorderThickness="0"
                                 Click="SelectIcon_Click"
                                 MouseEnter="ToolButton_MouseEnter" MouseLeave="ToolButton_MouseLeave">
-                                <Border x:Name="SelectCheckBorder" Width="30" Height="32"
+                                <Border x:Name="SelectCheckBorder" Width="34" Height="34"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"
                                     CornerRadius="7" Background="Transparent" Opacity="1">
                                     <Grid>
                                         <Border x:Name="SelectHoverOverlay" Background="Transparent" Visibility="Collapsed" CornerRadius="5" />
                                         <ikw:SimpleStackPanel Name="Select_Icon" HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent" Orientation="Vertical">
                                             <ui:FontIcon x:Name="Icon_Select1"
-                                                Width="30"
+                                                Width="34"
                                                 Height="22"
                                                 FontFamily="{StaticResource FluentIconFontFamily}"
                                                 FontSize="16"
@@ -884,27 +886,34 @@
                                                 TextAlignment="Center"
                                                 Visibility="{Binding ElementName=FloatBarSelectIconTextBlock, Path=Visibility}" />
                                         </ikw:SimpleStackPanel>
-                                        <Border x:Name="SelectAccentPill" Width="13" Height="3" CornerRadius="1.5"
+                                        <Border x:Name="SelectAccentPill" Width="15" Height="3" CornerRadius="1.5"
                                             HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,1"
                                             Background="{DynamicResource {x:Static ui:ThemeKeys.AccentFillColorDefaultBrushKey}}" Visibility="Collapsed" />
                                     </Grid>
                                 </Border>
                             </Button>
+                        <Border
+                            Width="1"
+                            Height="24"
+                            Margin="4,0"
+                            VerticalAlignment="Center"
+                            Background="{DynamicResource FloatBarBorderBrush}"
+                            Opacity="0.5" />
                             <Button x:Name="BtnDrawShape"
-                                Width="30"
-                                Height="32"
+                                Width="34"
+                                Height="34"
                                 Padding="0"
                                 BorderThickness="0"
                                 Click="ImageDrawShape_Click"
                                 MouseEnter="ToolButton_MouseEnter" MouseLeave="ToolButton_MouseLeave">
-                                <Border x:Name="ShapeCheckBorder" Width="30" Height="32"
+                                <Border x:Name="ShapeCheckBorder" Width="34" Height="34"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"
                                     CornerRadius="7" Background="Transparent" Opacity="1">
                                     <Grid>
                                         <Border x:Name="ShapeHoverOverlay" Background="Transparent" Visibility="Collapsed" CornerRadius="5" />
                                         <ikw:SimpleStackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent" Orientation="Vertical">
                                             <ui:FontIcon
-                                                Width="30"
+                                                Width="34"
                                                 Height="22"
                                                 FontFamily="{StaticResource FluentIconFontFamily}"
                                                 FontSize="16"
@@ -918,7 +927,7 @@
                                                 TextAlignment="Center"
                                                 Visibility="{Binding ElementName=FloatBarSelectIconTextBlock, Path=Visibility}" />
                                         </ikw:SimpleStackPanel>
-                                        <Border x:Name="ShapeAccentPill" Width="13" Height="3" CornerRadius="1.5"
+                                        <Border x:Name="ShapeAccentPill" Width="15" Height="3" CornerRadius="1.5"
                                             HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,1"
                                             Background="{DynamicResource {x:Static ui:ThemeKeys.AccentFillColorDefaultBrushKey}}" Visibility="Collapsed" />
                                     </Grid>
@@ -1076,20 +1085,20 @@
 
                             <!--  激光笔（只出光不落墨；点按钮切换，激光模式下页面照常滚动）  -->
                             <Button x:Name="BtnLaser"
-                                Width="30"
-                                Height="32"
+                                Width="34"
+                                Height="34"
                                 Margin="2,0,0,0"
                                 Padding="0"
                                 BorderThickness="0"
                                 Click="LaserIcon_Click"
                                 MouseEnter="ToolButton_MouseEnter" MouseLeave="ToolButton_MouseLeave">
-                                <Border x:Name="LaserCheckBorder" Width="30" Height="32"
+                                <Border x:Name="LaserCheckBorder" Width="34" Height="34"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"
                                     CornerRadius="7" Background="Transparent" Opacity="1">
                                     <Grid>
                                         <Border x:Name="LaserHoverOverlay" Background="Transparent" Visibility="Collapsed" CornerRadius="7" />
-                                        <ikw:SimpleStackPanel Name="Laser_Icon" Width="30" HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent" Orientation="Vertical">
-                                            <Grid Width="30" Height="22">
+                                        <ikw:SimpleStackPanel Name="Laser_Icon" Width="34" HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent" Orientation="Vertical">
+                                            <Grid Width="34" Height="22">
                                                 <Ellipse Width="11" Height="11" HorizontalAlignment="Center" VerticalAlignment="Center" Fill="#FF2E40" />
                                                 <Ellipse Width="4" Height="4" HorizontalAlignment="Center" VerticalAlignment="Center" Fill="#FFFFFF" />
                                             </Grid>
@@ -1101,7 +1110,7 @@
                                                 TextAlignment="Center"
                                                 Visibility="{Binding ElementName=FloatBarSelectIconTextBlock, Path=Visibility}" />
                                         </ikw:SimpleStackPanel>
-                                        <Border x:Name="LaserAccentPill" Width="13" Height="3" CornerRadius="1.5"
+                                        <Border x:Name="LaserAccentPill" Width="15" Height="3" CornerRadius="1.5"
                                             HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,1"
                                             Background="{DynamicResource {x:Static ui:ThemeKeys.AccentFillColorDefaultBrushKey}}" Visibility="Collapsed" />
                                     </Grid>
@@ -1171,20 +1180,20 @@
                                 </Border>
                             </Popup>
                             <Button x:Name="BtnMore"
-                                Width="30"
-                                Height="32"
+                                Width="34"
+                                Height="34"
                                 Margin="2,0,0,0"
                                 Padding="0"
                                 BorderThickness="0"
                                 Click="MoreIcon_Click"
                                 MouseEnter="ToolButton_MouseEnter" MouseLeave="ToolButton_MouseLeave">
-                                <Border x:Name="MoreCheckBorder" Width="30" Height="32"
+                                <Border x:Name="MoreCheckBorder" Width="34" Height="34"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"
                                     CornerRadius="7" Background="Transparent" Opacity="1">
                                     <Grid>
                                         <Border x:Name="MoreHoverOverlay" Background="Transparent" Visibility="Collapsed" CornerRadius="7" />
                                         <ikw:SimpleStackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent" Orientation="Vertical">
-                                            <TextBlock Width="30" Height="22" Margin="0,2,0,-2" FontSize="16" TextAlignment="Center" Text="⋯" Foreground="{DynamicResource FloatBarIconForeground}" />
+                                            <TextBlock Width="34" Height="22" Margin="0,2,0,-2" FontSize="16" TextAlignment="Center" Text="⋯" Foreground="{DynamicResource FloatBarIconForeground}" />
                                             <TextBlock
                                                 Margin="1,-1,0,0"
                                                 FontSize="8"
@@ -1193,22 +1202,22 @@
                                                 TextAlignment="Center"
                                                 Visibility="{Binding ElementName=FloatBarSelectIconTextBlock, Path=Visibility}" />
                                         </ikw:SimpleStackPanel>
-                                        <Border x:Name="MoreAccentPill" Width="13" Height="3" CornerRadius="1.5"
+                                        <Border x:Name="MoreAccentPill" Width="15" Height="3" CornerRadius="1.5"
                                             HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,1"
                                             Background="{DynamicResource {x:Static ui:ThemeKeys.AccentFillColorDefaultBrushKey}}" Visibility="Collapsed" />
                                     </Grid>
                                 </Border>
                             </Button>
                             <Button
-                                Width="30"
-                                Height="32"
+                                Width="34"
+                                Height="34"
                                 Margin="2,0,0,0"
                                 Padding="0"
                                 BorderThickness="0"
                                 Command="{Binding InkTool.UndoCommand}">
                                 <ikw:SimpleStackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent" Orientation="Vertical">
                                     <ui:FontIcon x:Name="Icon_Undo"
-                                        Width="30"
+                                        Width="34"
                                         Height="22"
                                         Margin="0,2,0,-2"
                                         FontFamily="{StaticResource FluentIconFontFamily}"
@@ -1225,17 +1234,24 @@
                                 </ikw:SimpleStackPanel>
                             </Button>
                             <!--  画板入口（e929 图标 + "画板"文字；分割线已按需求移除）  -->
+                        <Border
+                            Width="1"
+                            Height="24"
+                            Margin="4,0"
+                            VerticalAlignment="Center"
+                            Background="{DynamicResource FloatBarBorderBrush}"
+                            Opacity="0.5" />
                             <ikw:SimpleStackPanel Margin="2,0,0,0" Orientation="Horizontal">
                                 <Button
-                                    Width="30"
-                                    Height="32"
+                                    Width="34"
+                                    Height="34"
                                     Padding="0"
                                     BorderThickness="0"
                                     Click="BoardIcon_Click">
                                     <Border Margin="0,2">
                                         <ikw:SimpleStackPanel Margin="0,-2,0,-2" HorizontalAlignment="Center" Background="Transparent" Orientation="Vertical">
                                             <ic:FluentIcon Icon="Whiteboard" IconVariant="Regular" FontSize="20"
-                                                Width="30" Height="22" Margin="0,0,0,-2"
+                                                Width="34" Height="22" Margin="0,0,0,-2"
                                                 Foreground="{DynamicResource FloatBarIconForeground}" />
                                             <TextBlock
                                                 Margin="0,0,0,-2"
@@ -1258,16 +1274,18 @@
              单击收起/展开整条栏，按住拖动移动（撞边自动换向，靠近右下预设位置会吸附） -->
         <Border
             x:Name="FloatingBarHandle"
-            Width="36"
-            Height="36"
+            Width="46"
+            Height="46"
             HorizontalAlignment="Left"
             VerticalAlignment="Top"
             Background="{DynamicResource FloatBarBackground}"
             BorderBrush="{DynamicResource FloatBarBorderBrush}"
             BorderThickness="1"
-            CornerRadius="8"
+            CornerRadius="12"
             Cursor="SizeAll"
             ToolTip="拖动移动 · 单击收起 / 展开"
+            MouseEnter="FloatingBarHandle_MouseEnter"
+            MouseLeave="FloatingBarHandle_MouseLeave"
             MouseLeftButtonDown="FloatingBarHandle_MouseLeftButtonDown"
             MouseLeftButtonUp="FloatingBarHandle_MouseLeftButtonUp"
             MouseMove="FloatingBarHandle_MouseMove">
@@ -1275,7 +1293,7 @@
                 <DropShadowEffect BlurRadius="12" Opacity="0.18" ShadowDepth="3" Direction="270" />
             </Border.Effect>
             <Grid>
-                <UniformGrid x:Name="HandleGripDots" Rows="3" Columns="3" Width="18" Height="18"
+                <UniformGrid x:Name="HandleGripDots" Rows="3" Columns="3" Width="20" Height="20"
                              HorizontalAlignment="Center" VerticalAlignment="Center">
                     <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource FloatBarForeground}" Opacity="0.5" />
                     <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource FloatBarForeground}" Opacity="0.5" />

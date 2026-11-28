@@ -105,6 +105,13 @@ public partial class MainWindow : Window
         };
         // 墨迹纠正引擎（识别后端 WinRT）。字段初始化器不能引用实例字段，故在构造函数内装配。
         _inkToShape = new InkToShapeEngine(() => _viewModel.InkTool.DrawingAttributes, ApplyShapeReplacement);
+        // 0.1.27 外观迁移：浮动栏改成「图标 + 文字 + 整格填色」的希沃式外观（老用户一次性改成带文字）
+        if (!_viewModel.Settings.FloatBarTextMigrated)
+        {
+            _viewModel.Settings.FloatBarTextMigrated = true;
+            _viewModel.Settings.IsEnableDisPlayFloatBarText = true;
+            try { Services.SettingsService.Save(_viewModel.Settings); } catch { /* 首启写盘失败不阻断启动 */ }
+        }
         // 设置覆盖层"浮动工具栏显示文字注释"变更 → 同步浮动栏文字；初始也按已保存设置应用一次。
         InkBar.Loaded += (_, _) => InkBar.ApplyFloatBarText(_viewModel.Settings.IsEnableDisPlayFloatBarText);
         SettingsView.FloatBarTextChanged += show => InkBar.ApplyFloatBarText(show);

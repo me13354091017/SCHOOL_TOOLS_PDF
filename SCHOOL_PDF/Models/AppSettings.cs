@@ -97,7 +97,11 @@ public class AppSettings
 
     /// <summary>是否显示浮动工具栏文字注释（抄 ICA isEnableDisPlayFloatBarText）。</summary>
     [JsonPropertyName("isEnableDisPlayFloatBarText")]
-    public bool IsEnableDisPlayFloatBarText { get; set; } = false;
+    public bool IsEnableDisPlayFloatBarText { get; set; } = true;
+
+    /// <summary>0.1.27 一次性迁移标记：老配置把浮动栏改成「图标+文字+整格填色」外观后置位。</summary>
+    [JsonPropertyName("floatBarTextMigrated")]
+    public bool FloatBarTextMigrated { get; set; }
 
     /// <summary>批注笔锋：0=点集笔锋，1=速率笔锋，2=关闭笔锋，3=时间笔锋（新装机默认时间笔锋；下拉框第一位的显示映射见 SettingsView.PenStyleMap）。</summary>
     [JsonPropertyName("inkStyle")]
