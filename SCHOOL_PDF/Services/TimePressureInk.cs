@@ -174,7 +174,8 @@ internal sealed class TimePressureDynamicRenderer : DynamicRenderer
 
     protected override void OnDraw(DrawingContext drawingContext, StylusPointCollection stylusPoints, Geometry geometry, Brush fillBrush)
     {
-        if (_controller.CollectArmed || _controller.ShieldArmed)
+        // 浮动栏防穿透：本笔起点落在栏体上时整笔不落湿墨（宿主在 PreviewStylusDown 里置位）
+        if (_controller.CollectArmed || _controller.ShieldArmed || _controller.BarBlockPending)
             return;
         base.OnDraw(drawingContext, stylusPoints, geometry, fillBrush);
     }
@@ -203,6 +204,7 @@ public sealed class TimePressureController
 
     private int _primaryDeviceId = -1;        // InkCanvas 原生收墨的那支（首个落笔设备）
     private long _sessionToken;               // 会话令牌自增（锁内）
+    private volatile bool _barBlockPending;   // 本笔起点落在浮动栏上：整笔不落墨（防栏上点击穿透到页面）
     private volatile bool _collectArmed;      // 时间笔锋（主设备）武装
     private volatile bool _shieldArmed;       // 硬笔 0/1 屏蔽压感（主设备）武装
     private volatile bool _selfDrawAllDevices;// 全部设备由叠加层自绘（多指书写/多触摸）
@@ -232,6 +234,12 @@ public sealed class TimePressureController
     public TimePressureOverlay Overlay => _overlay;
 
     public bool CollectArmed => _collectArmed;
+
+    /// <summary>浮动栏防穿透标记：为真时实时渲染器不画湿墨（抬笔自动清除）。</summary>
+    internal bool BarBlockPending => _barBlockPending;
+
+    /// <summary>宿主判定本笔起点落在浮动栏上时调用：屏蔽这一笔的湿墨。</summary>
+    internal void BlockStrokeForBar() => _barBlockPending = true;
 
     public bool ShieldArmed => _shieldArmed;
 
@@ -487,6 +495,7 @@ public sealed class TimePressureController
     /// <summary>抬笔处理（UI 线程，OnStylusUpProcessed 调用）：自绘设备提交笔画；主设备（原生收墨）只补最后一帧。</summary>
     internal void OnDeviceUpProcessed(int deviceId, int tabletDeviceId)
     {
+        _barBlockPending = false;   // 一笔结束：撤掉浮动栏防穿透屏蔽
         if (SessionFullyInsideFloatingBar(deviceId))
         {
             // 整笔落在浮动栏上（点按钮时被广域投递的触摸/笔触点）：丢弃，避免"点按钮原地出墨点"

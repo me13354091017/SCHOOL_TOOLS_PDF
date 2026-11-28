@@ -1,0 +1,639 @@
+diff --git a/README.md b/README.md
+index a5b0c51..0d57e77 100644
+--- a/README.md
++++ b/README.md
+@@ -2,7 +2,7 @@
+ 
+ 面向课堂讲授与教学资料批注的 Windows PDF 应用——阅读、手写、标注在同一套工作流里完成，讲解时的圈画、公式推演与图形示意不必再切换到另一款白板工具。
+ 
+-当前版本 **v0.1.25（滚动与打开性能）** ｜ Windows 10 19041+ ｜ .NET 10 ｜ WPF + PDFium + WinRT Ink
++当前版本 **v0.1.26（浮动栏拖动与防穿透）** ｜ Windows 10 19041+ ｜ .NET 10 ｜ WPF + PDFium + WinRT Ink
+ 
+ ## 功能
+ 
+@@ -41,6 +41,7 @@
+ 
+ | 版本 | 内容 |
+ | --- | --- |
++| **v0.1.26** | 浮动栏拆成「拖动块 + 栏」：单击拖动块收起/展开、按住拖动整栏、撞边自动换向、松手靠近右下预设位置自动吸附；收起时拖动块显示当前工具首字；补上栏体（含留白）与拖动块的坐标兜底，起点落在栏上的笔整笔不落湿墨，点按钮不再穿透出墨点 |
+ | **v0.1.25** | 性能专项：滚动与惯性滚动期间位图改线性重采样、滚出缓冲的页排队渲染直接作废、页面渲染并发按核数自适应、打开文档时取页尺寸与读墨迹库并行、线程池最小线程数抬到核数以上 |
+ | **v0.1.24** | UInk 导入导出按 UInk 1.1 Beta 公开规范重写：主文件 `.uink` 为 MessagePack 对象流（Header + Canvas + Ink），声明写入基础级、读取标准级，可与智绘教 Inkeys、ICC-CE 直接互导 |
+ | **v0.1.23** | 激光笔（只出光不落墨）、误迹查杀（DDB）、智能擦、页级懒加载挂起、Fluent 圆角与弹层阴影 |
+@@ -57,8 +58,8 @@
+ 
+ ## 下载
+ 
+-- 安装包：[SCHOOL_TOOLS_PDF_x64_setup.exe](https://github.com/me13354091017/SCHOOL_TOOLS_PDF/releases/download/v0.1.25/SCHOOL_TOOLS_PDF_x64_setup.exe)
+-- 免安装压缩包：[GitHub Release v0.1.25](https://github.com/me13354091017/SCHOOL_TOOLS_PDF/releases/tag/v0.1.25)
++- 安装包：[SCHOOL_TOOLS_PDF_x64_setup.exe](https://github.com/me13354091017/SCHOOL_TOOLS_PDF/releases/download/v0.1.26/SCHOOL_TOOLS_PDF_x64_setup.exe)
++- 免安装压缩包：[GitHub Release v0.1.26](https://github.com/me13354091017/SCHOOL_TOOLS_PDF/releases/tag/v0.1.26)
+ 
+ ## 仓库结构
+ 
+diff --git a/SCHOOL_PDF/Controls/InkToolBar.xaml b/SCHOOL_PDF/Controls/InkToolBar.xaml
+index 1eaedfc..4a8dcab 100644
+--- a/SCHOOL_PDF/Controls/InkToolBar.xaml
++++ b/SCHOOL_PDF/Controls/InkToolBar.xaml
+@@ -29,6 +29,9 @@
+             <Viewbox.LayoutTransform>
+                 <ScaleTransform x:Name="ViewboxFloatingBarScaleTransform" ScaleX="1" ScaleY="1" />
+             </Viewbox.LayoutTransform>
++            <Viewbox.RenderTransform>
++                <TranslateTransform x:Name="FloatingBarSlideTransform" X="0" Y="0" />
++            </Viewbox.RenderTransform>
+             <ikw:SimpleStackPanel Orientation="Horizontal" Background="Transparent">
+ 
+                 <ikw:SimpleStackPanel.Resources>
+@@ -72,23 +75,6 @@
+                         <DropShadowEffect BlurRadius="14" Opacity="0.16" ShadowDepth="3" Direction="270" />
+                     </Border.Effect>
+                     <ikw:SimpleStackPanel Name="StackPanelFloatingBar" Orientation="Horizontal">
+-                        <Border
+-                            x:Name="FloatingBarGrip"
+-                            Width="14"
+-                            Height="32"
+-                            Margin="2,0,0,0"
+-                            Background="Transparent"
+-                            Cursor="SizeAll"
+-                            MouseLeftButtonDown="FloatingBarGrip_MouseLeftButtonDown"
+-                            MouseLeftButtonUp="FloatingBarGrip_MouseLeftButtonUp"
+-                            MouseMove="FloatingBarGrip_MouseMove"
+-                            ToolTip="按住拖动可移动墨迹栏">
+-                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+-                                <Ellipse Width="2.5" Height="2.5" Margin="0,1.5" Fill="{DynamicResource FloatBarForeground}" Opacity="0.45" />
+-                                <Ellipse Width="2.5" Height="2.5" Margin="0,1.5" Fill="{DynamicResource FloatBarForeground}" Opacity="0.45" />
+-                                <Ellipse Width="2.5" Height="2.5" Margin="0,1.5" Fill="{DynamicResource FloatBarForeground}" Opacity="0.45" />
+-                            </StackPanel>
+-                        </Border>
+                         <Button x:Name="BtnMouse"
+                             Width="30"
+                             Height="32"
+@@ -1268,6 +1254,66 @@
+     </ikw:SimpleStackPanel>
+ </Viewbox>
+ 
++        <!-- 独立拖动块：36×36 圆角方块，展开时显示九点、收起时显示当前工具首字；
++             单击收起/展开整条栏，按住拖动移动（撞边自动换向，靠近右下预设位置会吸附） -->
++        <Border
++            x:Name="FloatingBarHandle"
++            Width="36"
++            Height="36"
++            HorizontalAlignment="Left"
++            VerticalAlignment="Top"
++            Background="{DynamicResource FloatBarBackground}"
++            BorderBrush="{DynamicResource FloatBarBorderBrush}"
++            BorderThickness="1"
++            CornerRadius="8"
++            Cursor="SizeAll"
++            ToolTip="拖动移动 · 单击收起 / 展开"
++            MouseLeftButtonDown="FloatingBarHandle_MouseLeftButtonDown"
++            MouseLeftButtonUp="FloatingBarHandle_MouseLeftButtonUp"
++            MouseMove="FloatingBarHandle_MouseMove">
++            <Border.Effect>
++                <DropShadowEffect BlurRadius="12" Opacity="0.18" ShadowDepth="3" Direction="270" />
++            </Border.Effect>
++            <Grid>
++                <UniformGrid x:Name="HandleGripDots" Rows="3" Columns="3" Width="18" Height="18"
++                             HorizontalAlignment="Center" VerticalAlignment="Center">
++                    <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource FloatBarForeground}" Opacity="0.5" />
++                    <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource FloatBarForeground}" Opacity="0.5" />
++                    <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource FloatBarForeground}" Opacity="0.5" />
++                    <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource FloatBarForeground}" Opacity="0.5" />
++                    <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource FloatBarForeground}" Opacity="0.5" />
++                    <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource FloatBarForeground}" Opacity="0.5" />
++                    <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource FloatBarForeground}" Opacity="0.5" />
++                    <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource FloatBarForeground}" Opacity="0.5" />
++                    <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource FloatBarForeground}" Opacity="0.5" />
++                </UniformGrid>
++                <TextBlock
++                    x:Name="HandleToolGlyph"
++                    HorizontalAlignment="Center"
++                    VerticalAlignment="Center"
++                    FontSize="14"
++                    Foreground="{DynamicResource FloatBarForeground}"
++                    Visibility="Collapsed"
++                    Text="笔" />
++            </Grid>
++        </Border>
++
++        <!-- 预设位置提示（拖动靠近右下角时出现） -->
++        <Border
++            x:Name="FloatingBarSnapHint"
++            HorizontalAlignment="Left"
++            VerticalAlignment="Top"
++            Padding="8,5"
++            Background="#FFFFFF"
++            CornerRadius="5"
++            IsHitTestVisible="False"
++            Visibility="Collapsed">
++            <Border.Effect>
++                <DropShadowEffect BlurRadius="8" Opacity="0.22" ShadowDepth="2" Direction="270" />
++            </Border.Effect>
++            <TextBlock FontSize="12" Foreground="#1A1A1A" Text="预设位置" />
++        </Border>
++
+         <!-- 激光笔轨迹层：整窗铺满、不拦输入（IsHitTestVisible=False），只画发光轨迹 -->
+         <c:LaserPointerOverlay x:Name="LaserLayer" Visibility="Visible" />
+ 
+diff --git a/SCHOOL_PDF/Controls/InkToolBar.xaml.cs b/SCHOOL_PDF/Controls/InkToolBar.xaml.cs
+index 1a7e003..9ad16d4 100644
+--- a/SCHOOL_PDF/Controls/InkToolBar.xaml.cs
++++ b/SCHOOL_PDF/Controls/InkToolBar.xaml.cs
+@@ -174,7 +174,7 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
+ 
+     /// <summary>指针此刻是否真的停在栏体上——只有这种情况才丢弃"栏内整笔"，
+     /// 避免打开文档回填历史墨迹（无指针悬停）时误删浮动栏下方原有的批注。</summary>
+-    internal bool IsPointerOverBarBody => BorderFloatingBarMainControls.IsMouseOver;
++    internal bool IsPointerOverBarBody => BorderFloatingBarMainControls.IsMouseOver || FloatingBarHandle.IsMouseOver;
+ 
+     /// <summary>栏体是否处于可交互可见状态（隐藏/加载期不做墨迹丢弃判定）。</summary>
+     internal bool IsBarInputRegionActive =>
+@@ -186,11 +186,26 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
+     {
+         try
+         {
+-            var toTarget = BorderFloatingBarMainControls.TransformToVisual(target);
+-            var topLeft = toTarget.Transform(new Point(0, 0));
+-            var bottomRight = toTarget.Transform(
+-                new Point(BorderFloatingBarMainControls.ActualWidth, BorderFloatingBarMainControls.ActualHeight));
+-            return new Rect(topLeft, bottomRight);
++            Rect barRect = Rect.Empty;
++            // 用 Viewbox 的视觉盒（含栏体上下留白）：点留白区同样不该把墨点落到页面上
++            if (!_barCollapsed && ViewboxFloatingBar.IsVisible && ViewboxFloatingBar.ActualWidth > 4)
++            {
++                var toTarget = ViewboxFloatingBar.TransformToVisual(target);
++                barRect = new Rect(
++                    toTarget.Transform(new Point(0, 0)),
++                    toTarget.Transform(new Point(ViewboxFloatingBar.ActualWidth, ViewboxFloatingBar.ActualHeight)));
++            }
++            // 独立拖动块也算栏的输入区：点它不该在页面上漏墨点，整笔落在它上面同样丢弃
++            try
++            {
++                var toHandle = FloatingBarHandle.TransformToVisual(target);
++                var handleRect = new Rect(
++                    toHandle.Transform(new Point(0, 0)),
++                    toHandle.Transform(new Point(FloatingBarHandle.ActualWidth, FloatingBarHandle.ActualHeight)));
++                barRect = Rect.Union(barRect, handleRect);
++            }
++            catch { /* 拖动块尚未布局：只用栏体矩形 */ }
++            return barRect;
+         }
+         catch
+         {
+@@ -199,6 +214,16 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
+     }
+ 
+     /// <summary>笔画的所有点是否都落在浮动栏主边框内——点按钮时原地生成的墨点会满足此条件。</summary>
++    /// <summary>某点（目标视觉坐标系）是否落在浮动栏/拖动块的可交互区域上（不依赖 IsMouseOver，防穿透判定用）。</summary>
++    internal bool IsPointInBarInputRegion(Visual target, Point point)
++    {
++        var rect = BarRectIn(target);
++        if (rect.IsEmpty || rect.Width < 4 || rect.Height < 4)
++            return false;
++        rect.Inflate(2, 2);
++        return rect.Contains(point);
++    }
++
+     internal bool IsStrokeFullyInsideBar(System.Windows.Ink.Stroke stroke, Visual target)
+     {
+         if (stroke.StylusPoints.Count == 0)
+@@ -218,7 +243,7 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
+     private double _placementRightMargin = 16;
+     private double _placementBottomMargin = 16;
+ 
+-    /// <summary>记录目标边距并立即重算栏位置（右/下边距 = 栏距窗口右/底缘的距离）。</summary>
++    /// <summary>记录目标边距并立即重算栏位置（右/下边距 = 栏视觉右缘/底缘距窗口右/底缘的距离）。</summary>
+     public void ApplyPlacement(double rightMargin, double bottomMargin)
+     {
+         _placementRightMargin = rightMargin;
+@@ -226,79 +251,279 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
+         ReapplyPlacement();
+     }
+ 
+-    /// <summary>把栏摆到宿主右下：实测主 Border 视觉右/下角锚定边距；右/下恒为大负值留呼吸空间，
+-    /// 使墨迹选项面板的负 Margin 伸出栏外的部分始终落在宿主范围内（可渲染、可命中）。</summary>
++    // ────────── 拖动块 + 栏：定位 / 收起展开 / 撞墙换向 / 预设位置吸附 ──────────
++
++    private const double HandleSize = 36;      // 拖动块边长（与 XAML Width/Height 一致）
++    private const double HandleGap = 8;        // 拖动块与栏之间的空隙
++    private const double EdgeMargin = 8;       // 贴边最小留白
++    private const double SnapDistance = 24;    // 距预设位置多近开始提示并吸附
++    private const double PresetRight = 16;     // 预设位置：拖动块右下角距窗口右/下边距
++    private const double PresetBottom = 16;
++    private const int SlideMs = 220;           // 收起/展开的滑动时长
++
++    private bool _barCollapsed;                // 栏已收起（只剩拖动块）
++    private bool _barOnRight;                  // 拖动块在右（栏向左展开）
++    private double _barW = 1;                  // 栏视觉宽（含缩放设置）
++    private double _barH = 36;                 // 栏视觉高
++    private double _barKx = 1;                 // 栏视觉右缘相对 Margin.Left 的偏移
++    private double _barKy = 36;                // 栏视觉底缘相对 Margin.Top 的偏移
++
++    /// <summary>重算拖动块与栏的位置（宿主/栏尺寸、缩放设置、边距变化时调用）。</summary>
+     private void ReapplyPlacement()
+     {
+-        double w = ViewboxFloatingBar.ActualWidth;
+-        double h = ViewboxFloatingBar.ActualHeight;
+-        if (w < 1 || h < 1 || ActualWidth < 1 || ActualHeight < 1)
+-            return;   // 尚未布局：SizeChanged/Loaded 钩子会在布局完成后再次触发
+-
+-        // 实测主 Border 视觉右/下角（含 Viewbox 内部缩放与缩放设置的 LayoutTransform），
+-        // 减去当前 Margin 平移得到与 Margin 无关的锚定常量 K：
+-        // 旧算法 w 不含 LayoutTransform 缩放且 Left 对齐以左上为锚放大，缩放 >100% 时栏飞出窗口；
+-        // 同时天然补偿内部 Margin 造成的右/底视觉偏差。
+-        double kx = w, ky = h;   // 兜底：TransformToVisual 不可用时退回旧算法
+-        if (BorderFloatingBarMainControls.Parent is not null)
++        if (ActualWidth < 1 || ActualHeight < 1)
++            return;
++        MeasureBarVisual();
++
++        double targetRight = ActualWidth - _placementRightMargin;
++        double targetBottom = ActualHeight - _placementBottomMargin;
++
++        // 拖动块默认在左、向右展开；右侧放不下就翻到右边、栏向左展开（撞墙换向）
++        _barOnRight = targetRight - (HandleSize + HandleGap + _barW) < EdgeMargin;
++        double barLeft, handleLeft;
++        if (!_barOnRight)
++        {
++            barLeft = targetRight - _barW;
++            handleLeft = barLeft - HandleGap - HandleSize;
++        }
++        else
++        {
++            handleLeft = targetRight - HandleSize;
++            barLeft = handleLeft - HandleGap - _barW;
++        }
++
++        double barTop = targetBottom - _barH;
++        double handleTop = barTop + (_barH - HandleSize) / 2;
++
++        barLeft = Math.Clamp(barLeft, EdgeMargin, Math.Max(EdgeMargin, ActualWidth - _barW - EdgeMargin));
++        barTop = Math.Clamp(barTop, EdgeMargin, Math.Max(EdgeMargin, ActualHeight - _barH - EdgeMargin));
++        handleLeft = Math.Clamp(handleLeft, EdgeMargin, Math.Max(EdgeMargin, ActualWidth - HandleSize - EdgeMargin));
++        handleTop = Math.Clamp(handleTop, EdgeMargin, Math.Max(EdgeMargin, ActualHeight - HandleSize - EdgeMargin));
++
++        ViewboxFloatingBar.Margin = new Thickness(barLeft + _barW - _barKx, barTop + _barH - _barKy, -2000, -200);
++        FloatingBarHandle.Margin = new Thickness(handleLeft, handleTop, -2000, -200);
++
++        ApplyCollapsedVisual(animate: false);
++    }
++
++    /// <summary>实测栏的视觉盒（含 Viewbox 的缩放设置）。收起动画的位移会污染坐标换算，
++    /// 测量期间临时归零，测完原样恢复（同一帧内完成，不会闪）。</summary>
++    private void MeasureBarVisual()
++    {
++        if (BorderFloatingBarMainControls.Parent is null)
++            return;
++        double sx = FloatingBarSlideTransform.X;
++        double op = ViewboxFloatingBar.Opacity;
++        bool restore = Math.Abs(sx) > 0.01 || op < 0.999;
++        if (restore)
++        {
++            FloatingBarSlideTransform.X = 0;
++            ViewboxFloatingBar.Opacity = 1;
++        }
++        try
+         {
+             var toSelf = BorderFloatingBarMainControls.TransformToVisual(this);
+-            if (toSelf.TryTransform(
+-                    new Point(BorderFloatingBarMainControls.ActualWidth,
+-                              BorderFloatingBarMainControls.ActualHeight), out var br))
++            var tl = toSelf.Transform(new Point(0, 0));
++            var br = toSelf.Transform(new Point(
++                BorderFloatingBarMainControls.ActualWidth, BorderFloatingBarMainControls.ActualHeight));
++            double w = br.X - tl.X, h = br.Y - tl.Y;
++            if (w >= 1 && h >= 1)
++            {
++                _barW = w;
++                _barH = h;
++                _barKx = br.X - ViewboxFloatingBar.Margin.Left;
++                _barKy = br.Y - ViewboxFloatingBar.Margin.Top;
++            }
++        }
++        catch { /* 变换不可用：沿用上次测量值 */ }
++        finally
++        {
++            if (restore)
+             {
+-                kx = br.X - ViewboxFloatingBar.Margin.Left;
+-                ky = br.Y - ViewboxFloatingBar.Margin.Top;
++                FloatingBarSlideTransform.X = sx;
++                ViewboxFloatingBar.Opacity = op;
+             }
+         }
++    }
+ 
+-        double left = Math.Max(0, ActualWidth  - _placementRightMargin  - kx);
+-        double top  = Math.Max(0, ActualHeight - _placementBottomMargin - ky);
+-        ViewboxFloatingBar.Margin = new Thickness(left, top, -2000, -200);
++    /// <summary>套用收起/展开的视觉：栏朝拖动块一侧滑入并淡出，拖动块上的图标在九点与工具字之间切换。</summary>
++    private void ApplyCollapsedVisual(bool animate)
++    {
++        double slide = _barCollapsed ? (_barOnRight ? _barW + HandleGap : -(_barW + HandleGap)) : 0;
++        double opacity = _barCollapsed ? 0 : 1;
++        ViewboxFloatingBar.IsHitTestVisible = !_barCollapsed;
++        HandleGripDots.Visibility = _barCollapsed ? Visibility.Collapsed : Visibility.Visible;
++        HandleToolGlyph.Visibility = _barCollapsed ? Visibility.Visible : Visibility.Collapsed;
++        UpdateHandleGlyph();
++
++        if (!animate)
++        {
++            FloatingBarSlideTransform.BeginAnimation(TranslateTransform.XProperty, null);
++            FloatingBarSlideTransform.X = slide;
++            ViewboxFloatingBar.BeginAnimation(OpacityProperty, null);
++            ViewboxFloatingBar.Opacity = opacity;
++            return;
++        }
++
++        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
++        FloatingBarSlideTransform.BeginAnimation(TranslateTransform.XProperty,
++            new DoubleAnimation(slide, TimeSpan.FromMilliseconds(SlideMs)) { EasingFunction = ease });
++        ViewboxFloatingBar.BeginAnimation(OpacityProperty,
++            new DoubleAnimation(opacity, TimeSpan.FromMilliseconds(SlideMs)) { EasingFunction = ease });
+     }
+ 
+-    // ────────── 拖动墨迹栏（把手，位置写回设置）──────────
++    /// <summary>收起状态下拖动块上显示当前工具的字（笔 / 擦 / 选 / 激）。</summary>
++    private void UpdateHandleGlyph()
++    {
++        HandleToolGlyph.Text = Vm?.InkTool.ActiveTool switch
++        {
++            InkToolMode.Eraser => "擦",
++            InkToolMode.Select => "选",
++            InkToolMode.Laser => "激",
++            _ => "笔"
++        };
++    }
++
++    /// <summary>单击拖动块：收起 / 展开整条栏。</summary>
++    internal void ToggleBarCollapsed()
++    {
++        _barCollapsed = !_barCollapsed;
++        if (!_barCollapsed)   // 展开前按当前窗口重摆一次，避免窗口改过大小后滑出空档
++            ReapplyPlacement();
++        ApplyCollapsedVisual(animate: true);
++    }
++
++    // ────────── 拖动（按住拖动块移动整条栏，松开吸边）──────────
+ 
+     private bool _barDragging;
++    private bool _barMoved;
+     private Point _barDragStart;
+-    private double _barDragRight;
+-    private double _barDragBottom;
++    private double _barDragRight0;
++    private double _barDragBottom0;
++    private DispatcherTimer? _snapTimer;
+ 
+-    private void FloatingBarGrip_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
++    private void FloatingBarHandle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+     {
+-        if (Vm is not { } vm || sender is not IInputElement grip)
++        if (sender is not IInputElement grip || ActualWidth < 1)
+             return;
+         _barDragging = true;
++        _barMoved = false;
+         _barDragStart = e.GetPosition(this);
+-        _barDragRight = vm.Settings.FloatingBarRightMargin;
+-        _barDragBottom = vm.Settings.FloatingBarBottomMargin;
++        _barDragRight0 = _placementRightMargin;
++        _barDragBottom0 = _placementBottomMargin;
++        _snapTimer?.Stop();
++        _snapTimer = null;
+         grip.CaptureMouse();
+         e.Handled = true;
+     }
+ 
+-    private void FloatingBarGrip_MouseMove(object sender, MouseEventArgs e)
++    private void FloatingBarHandle_MouseMove(object sender, MouseEventArgs e)
+     {
+-        if (!_barDragging || Vm is not { } vm)
++        if (!_barDragging)
+             return;
+         var point = e.GetPosition(this);
+-        vm.Settings.FloatingBarRightMargin = Math.Clamp(_barDragRight - (point.X - _barDragStart.X), 0, Math.Max(0, ActualWidth - 80));
+-        vm.Settings.FloatingBarBottomMargin = Math.Clamp(_barDragBottom - (point.Y - _barDragStart.Y), 0, Math.Max(0, ActualHeight - 60));
+-        _placementRightMargin = vm.Settings.FloatingBarRightMargin;
+-        _placementBottomMargin = vm.Settings.FloatingBarBottomMargin;
++        double dx = point.X - _barDragStart.X;
++        double dy = point.Y - _barDragStart.Y;
++        if (!_barMoved)
++        {
++            if (Math.Abs(dx) < 3 && Math.Abs(dy) < 3)
++                return;
++            _barMoved = true;
++        }
++        _placementRightMargin = Math.Clamp(_barDragRight0 - dx, 0, Math.Max(0, ActualWidth - HandleSize));
++        _placementBottomMargin = Math.Clamp(_barDragBottom0 - dy, 0, Math.Max(0, ActualHeight - HandleSize));
+         ReapplyPlacement();
++        UpdateSnapHint();
+         e.Handled = true;
+     }
+ 
+-    private void FloatingBarGrip_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
++    private void FloatingBarHandle_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+     {
+         if (!_barDragging)
+             return;
+         _barDragging = false;
+         (sender as IInputElement)?.ReleaseMouseCapture();
+-        SaveInkOptions();   // 含 FloatingBar 边距一起存盘
++        FloatingBarSnapHint.Visibility = Visibility.Collapsed;
++
++        // 没移动 = 单击：收起 / 展开
++        if (!_barMoved)
++        {
++            ToggleBarCollapsed();
++            e.Handled = true;
++            return;
++        }
++
++        // 靠近右下预设位置 → 吸附过去
++        if (IsNearPreset())
++            SnapToPreset();
++        PersistPlacement();
+         e.Handled = true;
+     }
+ 
++    /// <summary>把当前位置写回设置并落盘（拖动结束/吸附完成时调用）。</summary>
++    private void PersistPlacement()
++    {
++        if (Vm is { } vm)
++        {
++            vm.Settings.FloatingBarRightMargin = _placementRightMargin;
++            vm.Settings.FloatingBarBottomMargin = _placementBottomMargin;
++        }
++        SaveInkOptions();   // 含 FloatingBar 边距一起存盘
++    }
++
++    /// <summary>拖动时是否已靠近右下预设位置。</summary>
++    private bool IsNearPreset()
++        => Math.Abs(_placementRightMargin - PresetRight) <= SnapDistance
++           && Math.Abs(_placementBottomMargin - PresetBottom) <= SnapDistance;
++
++    /// <summary>拖动中在拖动块上方（贴顶时改到下方）显示「预设位置」提示。</summary>
++    private void UpdateSnapHint()
++    {
++        if (!_barMoved || !IsNearPreset())
++        {
++            FloatingBarSnapHint.Visibility = Visibility.Collapsed;
++            return;
++        }
++        FloatingBarSnapHint.Visibility = Visibility.Visible;
++        FloatingBarSnapHint.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
++        double w = FloatingBarSnapHint.DesiredSize.Width;
++        double h = FloatingBarSnapHint.DesiredSize.Height;
++        double left = FloatingBarHandle.Margin.Left;
++        double top = FloatingBarHandle.Margin.Top;
++        double hintLeft = Math.Clamp(left + HandleSize / 2 - w / 2, EdgeMargin, Math.Max(EdgeMargin, ActualWidth - w - EdgeMargin));
++        double hintTop = top - h - 8;
++        if (hintTop < EdgeMargin)
++            hintTop = top + HandleSize + 8;
++        FloatingBarSnapHint.Margin = new Thickness(hintLeft, hintTop, -2000, -200);
++    }
++
++    /// <summary>松手吸附到右下预设位置（260ms easeOutCubic，位置写回设置）。</summary>
++    private void SnapToPreset()
++    {
++        _snapTimer?.Stop();
++        double fromR = _placementRightMargin, fromB = _placementBottomMargin;
++        double elapsed = 0;
++        _snapTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
++        _snapTimer.Tick += (_, _) =>
++        {
++            elapsed += _snapTimer!.Interval.TotalMilliseconds;
++            double t = Math.Min(1.0, elapsed / 260.0);
++            double ease = 1 - Math.Pow(1 - t, 3);      // easeOutCubic
++            _placementRightMargin = fromR + (PresetRight - fromR) * ease;
++            _placementBottomMargin = fromB + (PresetBottom - fromB) * ease;
++            ReapplyPlacement();
++            if (t < 1.0)
++                return;
++            _snapTimer!.Stop();
++            _snapTimer = null;
++            _placementRightMargin = PresetRight;
++            _placementBottomMargin = PresetBottom;
++            ReapplyPlacement();
++            PersistPlacement();
++        };
++        _snapTimer.Start();
++    }
++
+     // ────────── 粗细快捷档与墨迹预览 ──────────
+ 
+     private void PenWidthPreset_MouseUp(object sender, MouseButtonEventArgs e)
+diff --git a/SCHOOL_PDF/Controls/PageInkCanvas.cs b/SCHOOL_PDF/Controls/PageInkCanvas.cs
+index 111a217..f4c3c0b 100644
+--- a/SCHOOL_PDF/Controls/PageInkCanvas.cs
++++ b/SCHOOL_PDF/Controls/PageInkCanvas.cs
+@@ -13,6 +13,37 @@ namespace SchoolPdf.Controls;
+ /// 采样由 StylusPlugIn（笔线程原始包）完成，AppendSamples 内逐点拒绝帧内历史回放点。</summary>
+ public class PageInkCanvas : InkCanvas
+ {
++    /// <summary>浮动栏防穿透：笔落在栏体上却被打到本画布时，吞掉输入并让本笔不落湿墨。
++    /// 正常情况下栏体自己会命中，本兜底只在命中失效（缩放/变换后错位）时生效。</summary>
++    private bool TryBlockBarPenInput(Point point)
++    {
++        var bar = InkToolBar.Current;
++        if (bar is null || !bar.IsBarInputRegionActive || !bar.IsPointInBarInputRegion(this, point))
++            return false;
++        Controller.BlockStrokeForBar();
++        return true;
++    }
++
++    protected override void OnPreviewStylusDown(StylusDownEventArgs e)
++    {
++        if (TryBlockBarPenInput(e.GetPosition(this)))
++        {
++            e.Handled = true;
++            return;
++        }
++        base.OnPreviewStylusDown(e);
++    }
++
++    protected override void OnPreviewMouseLeftButtonDown(MouseButtonEventArgs e)
++    {
++        if (TryBlockBarPenInput(e.GetPosition(this)))
++        {
++            e.Handled = true;
++            return;
++        }
++        base.OnPreviewMouseLeftButtonDown(e);
++    }
++
+     /// <summary>智能擦总开关（墨迹栏橡皮菜单设置；仅面积擦生效）。</summary>
+     public static bool SmartEraseEnabled { get; set; } = true;
+ 
+diff --git a/SCHOOL_PDF/SCHOOL_TOOLS_PDF.csproj b/SCHOOL_PDF/SCHOOL_TOOLS_PDF.csproj
+index 4d84bdf..110178f 100644
+--- a/SCHOOL_PDF/SCHOOL_TOOLS_PDF.csproj
++++ b/SCHOOL_PDF/SCHOOL_TOOLS_PDF.csproj
+@@ -17,9 +17,9 @@
+   <Product>SCHOOL_TOOLS_PDF</Product>
+   <Authors>周之尧</Authors>
+   <Company>SCHOOL Tools</Company>
+-  <AssemblyVersion>0.1.25.0</AssemblyVersion>
+-  <FileVersion>0.1.25.0</FileVersion>
+-  <InformationalVersion>0.1.25</InformationalVersion>
++  <AssemblyVersion>0.1.26.0</AssemblyVersion>
++  <FileVersion>0.1.26.0</FileVersion>
++  <InformationalVersion>0.1.26</InformationalVersion>
+ 	<ApplicationIcon>Resources\app.ico</ApplicationIcon>
+ 	</PropertyGroup>
+   <ItemGroup>
+diff --git a/SCHOOL_PDF/Services/TimePressureInk.cs b/SCHOOL_PDF/Services/TimePressureInk.cs
+index e1dd37d..d5620bd 100644
+--- a/SCHOOL_PDF/Services/TimePressureInk.cs
++++ b/SCHOOL_PDF/Services/TimePressureInk.cs
+@@ -174,7 +174,8 @@ internal sealed class TimePressureDynamicRenderer : DynamicRenderer
+ 
+     protected override void OnDraw(DrawingContext drawingContext, StylusPointCollection stylusPoints, Geometry geometry, Brush fillBrush)
+     {
+-        if (_controller.CollectArmed || _controller.ShieldArmed)
++        // 浮动栏防穿透：本笔起点落在栏体上时整笔不落湿墨（宿主在 PreviewStylusDown 里置位）
++        if (_controller.CollectArmed || _controller.ShieldArmed || _controller.BarBlockPending)
+             return;
+         base.OnDraw(drawingContext, stylusPoints, geometry, fillBrush);
+     }
+@@ -203,6 +204,7 @@ public sealed class TimePressureController
+ 
+     private int _primaryDeviceId = -1;        // InkCanvas 原生收墨的那支（首个落笔设备）
+     private long _sessionToken;               // 会话令牌自增（锁内）
++    private volatile bool _barBlockPending;   // 本笔起点落在浮动栏上：整笔不落墨（防栏上点击穿透到页面）
+     private volatile bool _collectArmed;      // 时间笔锋（主设备）武装
+     private volatile bool _shieldArmed;       // 硬笔 0/1 屏蔽压感（主设备）武装
+     private volatile bool _selfDrawAllDevices;// 全部设备由叠加层自绘（多指书写/多触摸）
+@@ -233,6 +235,12 @@ public sealed class TimePressureController
+ 
+     public bool CollectArmed => _collectArmed;
+ 
++    /// <summary>浮动栏防穿透标记：为真时实时渲染器不画湿墨（抬笔自动清除）。</summary>
++    internal bool BarBlockPending => _barBlockPending;
++
++    /// <summary>宿主判定本笔起点落在浮动栏上时调用：屏蔽这一笔的湿墨。</summary>
++    internal void BlockStrokeForBar() => _barBlockPending = true;
++
+     public bool ShieldArmed => _shieldArmed;
+ 
+     /// <summary>全部设备都由叠加层绘制并自提交（多指书写/多触摸）；关闭时主设备仍走原生命中管线。</summary>
+@@ -487,6 +495,7 @@ public sealed class TimePressureController
+     /// <summary>抬笔处理（UI 线程，OnStylusUpProcessed 调用）：自绘设备提交笔画；主设备（原生收墨）只补最后一帧。</summary>
+     internal void OnDeviceUpProcessed(int deviceId, int tabletDeviceId)
+     {
++        _barBlockPending = false;   // 一笔结束：撤掉浮动栏防穿透屏蔽
+         if (SessionFullyInsideFloatingBar(deviceId))
+         {
+             // 整笔落在浮动栏上（点按钮时被广域投递的触摸/笔触点）：丢弃，避免"点按钮原地出墨点"
+diff --git a/SCHOOL_PDF/installer.iss b/SCHOOL_PDF/installer.iss
+index 76af83c..7ed1b25 100644
+--- a/SCHOOL_PDF/installer.iss
++++ b/SCHOOL_PDF/installer.iss
+@@ -4,7 +4,7 @@
+ #endif
+ 
+ #define MyAppName "SCHOOL_TOOLS_PDF"
+-#define MyAppVersion "0.1.25"
++#define MyAppVersion "0.1.26"
+ #define MyAppPublisher "SCHOOL Tools"
+ #define MyAppURL "https://github.com/me13354091017/SCHOOL_TOOLS_PDF"
+ #define MyAppExeName "SCHOOL_TOOLS_PDF.exe"

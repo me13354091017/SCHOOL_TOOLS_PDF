@@ -29,6 +29,9 @@
             <Viewbox.LayoutTransform>
                 <ScaleTransform x:Name="ViewboxFloatingBarScaleTransform" ScaleX="1" ScaleY="1" />
             </Viewbox.LayoutTransform>
+            <Viewbox.RenderTransform>
+                <TranslateTransform x:Name="FloatingBarSlideTransform" X="0" Y="0" />
+            </Viewbox.RenderTransform>
             <ikw:SimpleStackPanel Orientation="Horizontal" Background="Transparent">
 
                 <ikw:SimpleStackPanel.Resources>
@@ -72,23 +75,6 @@
                         <DropShadowEffect BlurRadius="14" Opacity="0.16" ShadowDepth="3" Direction="270" />
                     </Border.Effect>
                     <ikw:SimpleStackPanel Name="StackPanelFloatingBar" Orientation="Horizontal">
-                        <Border
-                            x:Name="FloatingBarGrip"
-                            Width="14"
-                            Height="32"
-                            Margin="2,0,0,0"
-                            Background="Transparent"
-                            Cursor="SizeAll"
-                            MouseLeftButtonDown="FloatingBarGrip_MouseLeftButtonDown"
-                            MouseLeftButtonUp="FloatingBarGrip_MouseLeftButtonUp"
-                            MouseMove="FloatingBarGrip_MouseMove"
-                            ToolTip="按住拖动可移动墨迹栏">
-                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <Ellipse Width="2.5" Height="2.5" Margin="0,1.5" Fill="{DynamicResource FloatBarForeground}" Opacity="0.45" />
-                                <Ellipse Width="2.5" Height="2.5" Margin="0,1.5" Fill="{DynamicResource FloatBarForeground}" Opacity="0.45" />
-                                <Ellipse Width="2.5" Height="2.5" Margin="0,1.5" Fill="{DynamicResource FloatBarForeground}" Opacity="0.45" />
-                            </StackPanel>
-                        </Border>
                         <Button x:Name="BtnMouse"
                             Width="30"
                             Height="32"
@@ -1267,6 +1253,66 @@
     </Border>
     </ikw:SimpleStackPanel>
 </Viewbox>
+
+        <!-- 独立拖动块：36×36 圆角方块，展开时显示九点、收起时显示当前工具首字；
+             单击收起/展开整条栏，按住拖动移动（撞边自动换向，靠近右下预设位置会吸附） -->
+        <Border
+            x:Name="FloatingBarHandle"
+            Width="36"
+            Height="36"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Top"
+            Background="{DynamicResource FloatBarBackground}"
+            BorderBrush="{DynamicResource FloatBarBorderBrush}"
+            BorderThickness="1"
+            CornerRadius="8"
+            Cursor="SizeAll"
+            ToolTip="拖动移动 · 单击收起 / 展开"
+            MouseLeftButtonDown="FloatingBarHandle_MouseLeftButtonDown"
+            MouseLeftButtonUp="FloatingBarHandle_MouseLeftButtonUp"
+            MouseMove="FloatingBarHandle_MouseMove">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="12" Opacity="0.18" ShadowDepth="3" Direction="270" />
+            </Border.Effect>
+            <Grid>
+                <UniformGrid x:Name="HandleGripDots" Rows="3" Columns="3" Width="18" Height="18"
+                             HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource FloatBarForeground}" Opacity="0.5" />
+                    <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource FloatBarForeground}" Opacity="0.5" />
+                    <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource FloatBarForeground}" Opacity="0.5" />
+                    <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource FloatBarForeground}" Opacity="0.5" />
+                    <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource FloatBarForeground}" Opacity="0.5" />
+                    <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource FloatBarForeground}" Opacity="0.5" />
+                    <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource FloatBarForeground}" Opacity="0.5" />
+                    <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource FloatBarForeground}" Opacity="0.5" />
+                    <Ellipse Width="2.6" Height="2.6" Fill="{DynamicResource FloatBarForeground}" Opacity="0.5" />
+                </UniformGrid>
+                <TextBlock
+                    x:Name="HandleToolGlyph"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontSize="14"
+                    Foreground="{DynamicResource FloatBarForeground}"
+                    Visibility="Collapsed"
+                    Text="笔" />
+            </Grid>
+        </Border>
+
+        <!-- 预设位置提示（拖动靠近右下角时出现） -->
+        <Border
+            x:Name="FloatingBarSnapHint"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Top"
+            Padding="8,5"
+            Background="#FFFFFF"
+            CornerRadius="5"
+            IsHitTestVisible="False"
+            Visibility="Collapsed">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="8" Opacity="0.22" ShadowDepth="2" Direction="270" />
+            </Border.Effect>
+            <TextBlock FontSize="12" Foreground="#1A1A1A" Text="预设位置" />
+        </Border>
 
         <!-- 激光笔轨迹层：整窗铺满、不拦输入（IsHitTestVisible=False），只画发光轨迹 -->
         <c:LaserPointerOverlay x:Name="LaserLayer" Visibility="Visible" />

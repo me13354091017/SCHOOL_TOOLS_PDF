@@ -13,6 +13,37 @@ namespace SchoolPdf.Controls;
 /// 采样由 StylusPlugIn（笔线程原始包）完成，AppendSamples 内逐点拒绝帧内历史回放点。</summary>
 public class PageInkCanvas : InkCanvas
 {
+    /// <summary>浮动栏防穿透：笔落在栏体上却被打到本画布时，吞掉输入并让本笔不落湿墨。
+    /// 正常情况下栏体自己会命中，本兜底只在命中失效（缩放/变换后错位）时生效。</summary>
+    private bool TryBlockBarPenInput(Point point)
+    {
+        var bar = InkToolBar.Current;
+        if (bar is null || !bar.IsBarInputRegionActive || !bar.IsPointInBarInputRegion(this, point))
+            return false;
+        Controller.BlockStrokeForBar();
+        return true;
+    }
+
+    protected override void OnPreviewStylusDown(StylusDownEventArgs e)
+    {
+        if (TryBlockBarPenInput(e.GetPosition(this)))
+        {
+            e.Handled = true;
+            return;
+        }
+        base.OnPreviewStylusDown(e);
+    }
+
+    protected override void OnPreviewMouseLeftButtonDown(MouseButtonEventArgs e)
+    {
+        if (TryBlockBarPenInput(e.GetPosition(this)))
+        {
+            e.Handled = true;
+            return;
+        }
+        base.OnPreviewMouseLeftButtonDown(e);
+    }
+
     /// <summary>智能擦总开关（墨迹栏橡皮菜单设置；仅面积擦生效）。</summary>
     public static bool SmartEraseEnabled { get; set; } = true;
 
