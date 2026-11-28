@@ -15,7 +15,7 @@ public sealed class LaserPointerOverlay : FrameworkElement
     private const long HoldMs = 1100;
 
     /// <summary>单条轨迹最多采样点（防长时间按笔累积几何）。</summary>
-    private const int MaxPointsPerTrail = 2400;
+    private const int MaxPointsPerTrail = 1200;
 
     private sealed class Trail
     {
@@ -48,7 +48,7 @@ public sealed class LaserPointerOverlay : FrameworkElement
         }
         _timer = new DispatcherTimer(DispatcherPriority.Render)
         {
-            Interval = TimeSpan.FromMilliseconds(16)
+            Interval = TimeSpan.FromMilliseconds(20)
         };
         _timer.Tick += (_, _) => Tick();
     }
@@ -85,7 +85,8 @@ public sealed class LaserPointerOverlay : FrameworkElement
         trail.Times.Add(Environment.TickCount64);
         _trails.Add(trail);
         _current = trail;
-        InvalidateVisual();
+        if (!_timer.IsEnabled)
+            _timer.Start();
     }
 
     public void Extend(Point point)
@@ -98,7 +99,7 @@ public sealed class LaserPointerOverlay : FrameworkElement
             Point last = trail.Points[^1];
             double dx = point.X - last.X;
             double dy = point.Y - last.Y;
-            if (dx * dx + dy * dy < 4)   // 位移过小不记点（省几何）
+            if (dx * dx + dy * dy < 9)   // 位移过小不记点（3px 以下不采，省几何与绘制）
                 return;
         }
         trail.Points.Add(point);
@@ -108,7 +109,8 @@ public sealed class LaserPointerOverlay : FrameworkElement
             trail.Points.RemoveAt(0);
             trail.Times.RemoveAt(0);
         }
-        InvalidateVisual();
+        if (!_timer.IsEnabled)
+            _timer.Start();
     }
 
     /// <summary>是否正在一条连续轨迹里（按下未抬）。</summary>

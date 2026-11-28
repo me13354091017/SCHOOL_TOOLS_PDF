@@ -441,6 +441,32 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         InkTool.LoadFromSettings(Settings);
     }
 
+    /// <summary>另存为带批注的 PDF（不改原文件）。返回写入页数。</summary>
+    internal async Task<int> SaveAnnotatedCopyAsync(string targetPath)
+    {
+        if (!HasPdf || Pages.Count == 0)
+            return 0;
+        var overlays = new List<PdfInkOverlay>();
+        foreach (var page in Pages)
+        {
+            if (page.Strokes.Count == 0)
+                continue;
+            if (page.ContentWidth <= 0 || page.ContentHeight <= 0)
+                throw new InvalidOperationException($"第 {page.PageIndex + 1} 页尚未准备好，暂时无法另存。");
+            overlays.Add(PdfRenderService.RenderInkOverlay(page));
+        }
+        await Task.Run(() => _pdf.SaveDocumentAsWithInk(overlays, targetPath));
+        return overlays.Count;
+    }
+
+    /// <summary>另存为 Word（每页含批注的图片写进 .docx）。返回导出页数。</summary>
+    internal async Task<int> ExportWordAsync(string targetPath)
+    {
+        if (!HasPdf || Pages.Count == 0)
+            return 0;
+        return await DocxPageExporter.ExportAsync(Pages, _pdf, targetPath);
+    }
+
     internal async Task<int> SaveAnnotationsToOriginalPdfAsync()
     {
         if (!HasPdf || Pages.Count == 0)

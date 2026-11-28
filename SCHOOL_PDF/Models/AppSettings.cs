@@ -97,11 +97,15 @@ public class AppSettings
 
     /// <summary>是否显示浮动工具栏文字注释（抄 ICA isEnableDisPlayFloatBarText）。</summary>
     [JsonPropertyName("isEnableDisPlayFloatBarText")]
-    public bool IsEnableDisPlayFloatBarText { get; set; } = true;
+    public bool IsEnableDisPlayFloatBarText { get; set; }
 
-    /// <summary>0.1.27 一次性迁移标记：老配置把浮动栏改成「图标+文字+整格填色」外观后置位。</summary>
+    /// <summary>0.1.27 一次性迁移标记（历史字段，保留兼容）。</summary>
     [JsonPropertyName("floatBarTextMigrated")]
     public bool FloatBarTextMigrated { get; set; }
+
+    /// <summary>0.1.28 一次性还原标记：按演示稿把浮动栏还原成无文字的纯图标栏（只做一次）。</summary>
+    [JsonPropertyName("floatBarTextRestored")]
+    public bool FloatBarTextRestored { get; set; }
 
     /// <summary>批注笔锋：0=点集笔锋，1=速率笔锋，2=关闭笔锋，3=时间笔锋（新装机默认时间笔锋；下拉框第一位的显示映射见 SettingsView.PenStyleMap）。</summary>
     [JsonPropertyName("inkStyle")]
@@ -173,7 +177,7 @@ public class AppSettings
 
     /// <summary>PDF 墨迹栏背景透明度（0~1，默认 0.75 与原视觉一致；仅非彩色模式生效）。</summary>
     [JsonPropertyName("viewboxFloatingBarOpacity")]
-    public double FloatingBarOpacity { get; set; } = 0.75;
+    public double FloatingBarOpacity { get; set; } = 1.0;
 
     /// <summary>黑板墨迹栏透明度（0~1，默认 0.75 与原视觉一致，作用于三条 BoardBar 整体）。</summary>
     [JsonPropertyName("viewboxBlackboardOpacity")]

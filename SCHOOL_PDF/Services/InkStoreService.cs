@@ -25,8 +25,52 @@ public sealed class InkStoreService : IDisposable
 
     private InkStoreService(string path) => _path = path;
 
-    /// <summary>PDF 文件内容的 XXH3-64 校验码（小写 hex，16 字符）。必须在非 UI 线程调用（大文件流式读）。</summary>
+    // 文件指纹缓存：同一路径 + 大小 + 修改时间没变就不再整文件重算 XXH3。
+    // 打开 100MB 的教材时这一步原来要读满整个文件（几百毫秒），缓存命中后基本为 0。
+    private static readonly object HashCacheLock = new();
+    private static Dictionary<string, (long Size, long Ticks, string Hash)>? _hashCache;
+    private static readonly string HashCachePath = Path.Combine(AppDataPaths.DataDirectory, "Ink", "hash-cache.json");
+
+    /// <summary>PDF 文件内容的 XXH3-64 校验码（小写 hex，16 字符）。必须在非 UI 线程调用（大文件流式读）。
+    /// 命中（路径 + 文件大小 + 修改时间都一致）时直接返回上次结果。</summary>
     public static string ComputePdfHash(string path)
+    {
+        long size = -1;
+        long ticks = -1;
+        try
+        {
+            var info = new FileInfo(path);
+            size = info.Length;
+            ticks = info.LastWriteTimeUtc.Ticks;
+        }
+        catch { /* 取不到文件信息就老老实实算 */ }
+
+        if (size >= 0)
+        {
+            lock (HashCacheLock)
+            {
+                if (_hashCache is null)
+                    _hashCache = LoadHashCache();
+                if (_hashCache.TryGetValue(path, out var cached)
+                    && cached.Size == size && cached.Ticks == ticks)
+                    return cached.Hash;
+            }
+        }
+
+        string hash = ComputePdfHashCore(path);
+        if (size >= 0)
+        {
+            lock (HashCacheLock)
+            {
+                _hashCache ??= new Dictionary<string, (long Size, long Ticks, string Hash)>(StringComparer.OrdinalIgnoreCase);
+                _hashCache[path] = (size, ticks, hash);
+                SaveHashCache(_hashCache);
+            }
+        }
+        return hash;
+    }
+
+    private static string ComputePdfHashCore(string path)
     {
         using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 1 << 16);
         var algo = new XxHash3();
@@ -35,6 +79,45 @@ public sealed class InkStoreService : IDisposable
         while ((read = fs.Read(buffer, 0, buffer.Length)) > 0)
             algo.Append(buffer.AsSpan(0, read));
         return algo.GetCurrentHashAsUInt64().ToString("x16");   // 64 位输出 → 16 hex
+    }
+
+    private static Dictionary<string, (long Size, long Ticks, string Hash)> LoadHashCache()
+    {
+        try
+        {
+            if (File.Exists(HashCachePath))
+            {
+                var json = File.ReadAllText(HashCachePath);
+                var list = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string[]>>(json);
+                if (list is { Count: > 0 })
+                {
+                    var map = new Dictionary<string, (long Size, long Ticks, string Hash)>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var (key, value) in list)
+                    {
+                        if (value.Length == 3
+                            && long.TryParse(value[0], out var size)
+                            && long.TryParse(value[1], out var ticks))
+                            map[key] = (size, ticks, value[2]);
+                    }
+                    return map;
+                }
+            }
+        }
+        catch { /* 缓存文件坏了就重建 */ }
+        return new Dictionary<string, (long Size, long Ticks, string Hash)>(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static void SaveHashCache(Dictionary<string, (long Size, long Ticks, string Hash)> map)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(HashCachePath)!);
+            var list = new Dictionary<string, string[]>(map.Count);
+            foreach (var (key, value) in map)
+                list[key] = new[] { value.Size.ToString(), value.Ticks.ToString(), value.Hash };
+            File.WriteAllText(HashCachePath, System.Text.Json.JsonSerializer.Serialize(list));
+        }
+        catch { /* 缓存写不进去不影响打开 */ }
     }
 
     /// <summary>按 PDF 文件定位（或新建）其墨迹库。必须在非 UI 线程调用（内部算文件内容哈希）。

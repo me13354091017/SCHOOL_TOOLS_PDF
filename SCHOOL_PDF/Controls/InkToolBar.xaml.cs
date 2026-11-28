@@ -253,7 +253,7 @@ public partial class InkToolBar : System.Windows.Controls.UserControl
 
     // ────────── 拖动块 + 栏：定位 / 收起展开 / 撞墙换向 / 预设位置吸附 ──────────
 
-    private const double HandleSize = 46;      // 拖动块边长（与 XAML Width/Height 一致）
+    private const double HandleSize = 36;      // 拖动块边长（与 XAML Width/Height 一致）
     private const double HandleGap = 8;        // 拖动块与栏之间的空隙
     private const double EdgeMargin = 8;       // 贴边最小留白
     private const double SnapDistance = 24;    // 距预设位置多近开始提示并吸附

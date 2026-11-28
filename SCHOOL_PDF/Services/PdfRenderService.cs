@@ -147,6 +147,63 @@ public sealed class PdfRenderService : IDisposable
         return new PdfInkOverlay(page.PageIndex, width, height, pixels);
     }
 
+    /// <summary>按指定像素尺寸把某页墨迹烘成位图（Word 导出用；坐标按 ContentWidth/Height 等比缩放）。</summary>
+    public static PdfInkOverlay RenderInkOverlayAt(PageModel page, int width, int height)
+    {
+        double coordinateWidth = page.ContentWidth > 0 ? page.ContentWidth : width;
+        double coordinateHeight = page.ContentHeight > 0 ? page.ContentHeight : height;
+        var visual = new DrawingVisual();
+        using (var context = visual.RenderOpen())
+        {
+            context.PushTransform(new ScaleTransform(width / coordinateWidth, height / coordinateHeight));
+            foreach (var stroke in page.Strokes)
+                stroke.Draw(context);
+            context.Pop();
+        }
+        var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(visual);
+        int stride = checked(width * 4);
+        var pixels = GC.AllocateUninitializedArray<byte>(checked(stride * height));
+        bitmap.CopyPixels(pixels, stride, 0);
+        return new PdfInkOverlay(page.PageIndex, width, height, pixels);
+    }
+
+    /// <summary>把带批注的当前文档另存到指定路径（不改原文件）。</summary>
+    public void SaveDocumentAsWithInk(IReadOnlyList<PdfInkOverlay> overlays, string targetPath)
+    {
+        string sourcePath = _documentPath ?? throw new InvalidOperationException("没有打开的 PDF 文件。");
+        string? password = _documentPassword;
+        string? dir = Path.GetDirectoryName(targetPath);
+        if (!string.IsNullOrEmpty(dir))
+            Directory.CreateDirectory(dir);
+        IntPtr saveDocument = PdfiumInterop.FPDF_LoadDocument(sourcePath, password);
+        if (saveDocument == IntPtr.Zero)
+            throw new InvalidOperationException("无法重新打开原 PDF 以另存。");
+        try
+        {
+            foreach (var overlay in overlays)
+                PdfiumInterop.AddInkOverlay(saveDocument, overlay.PageIndex, overlay.Width, overlay.Height, overlay.Pixels);
+            using var output = new FileStream(targetPath, FileMode.Create, FileAccess.Write, FileShare.None);
+            if (!PdfiumInterop.SaveAsCopy(saveDocument, output))
+                throw new InvalidOperationException("PDFium 另存失败。");
+        }
+        finally
+        {
+            PdfiumInterop.FPDF_CloseDocument(saveDocument);
+        }
+    }
+
+    /// <summary>把某页按目标像素尺寸栅格化成 BGRA 字节（不叠墨迹；Word 导出用）。</summary>
+    public byte[]? RenderPagePixels(int pageIndex, int width, int height)
+    {
+        lock (PdfiumInterop.PdfiumLock)
+        {
+            if (_doc == IntPtr.Zero)
+                return null;
+            return PdfiumInterop.FPDF_RenderPage(_doc, pageIndex, width, height);
+        }
+    }
+
     public void SaveDocumentWithInk(IReadOnlyList<PdfInkOverlay> overlays)
     {
         string sourcePath = _documentPath ?? throw new InvalidOperationException("没有打开的 PDF 文件。");

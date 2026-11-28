@@ -18,6 +18,8 @@ public partial class InkToolBar
 {
     private bool _extrasInited;
     private bool _laserHooked;
+    private bool _laserModeSubscribed;
+    private Window? _laserWindow;
     private bool _moreOutsideHooked;
     private long _lastStylusTick;
 
@@ -52,34 +54,52 @@ public partial class InkToolBar
         };
     }
 
-    /// <summary>Loaded 调用：激光层状态与窗口级取点挂接（只挂一次，卸载时摘）。</summary>
+    /// <summary>Loaded 调用：激光层状态与窗口级取点挂接。
+    /// 只在激光模式开启期间订阅窗口级笔/鼠标事件——平时书写不经过激光处理器，笔迹延迟更低。</summary>
     private void InitLaserHost()
     {
         LaserLayer.IsActive = Vm?.InkTool.IsLaserOn ?? false;
-        if (Vm is { } vm && !_laserHooked)
+        if (!_laserModeSubscribed && Vm is { } vm)
         {
+            _laserModeSubscribed = true;
             vm.InkTool.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName != nameof(InkToolViewModel.IsLaserOn))
                     return;
                 LaserLayer.IsActive = vm.InkTool.IsLaserOn;
+                ApplyLaserHooks(LaserLayer.IsActive);
             };
         }
-        if (_laserHooked)
-            return;
-        if (Window.GetWindow(this) is not { } window)
-            return;
-        _laserHooked = true;
-        window.PreviewMouseDown += LaserWindowMouseDown;
-        window.PreviewMouseMove += LaserWindowMouseMove;
-        window.PreviewMouseUp += LaserWindowMouseUp;
-        window.PreviewStylusDown += LaserWindowStylusDown;
-        window.PreviewStylusMove += LaserWindowStylusMove;
-        window.PreviewStylusUp += LaserWindowStylusUp;
-        Unloaded += (_, _) => DetachLaserHost(window);
+        if (Window.GetWindow(this) is { } window && _laserWindow != window)
+        {
+            _laserWindow = window;
+            Unloaded += (_, _) => DetachLaserHost(window);
+        }
+        ApplyLaserHooks(LaserLayer.IsActive);
     }
 
-    private void DetachLaserHost(Window window)
+    /// <summary>按需挂/摘窗口级激光取点处理器（幂等）。</summary>
+    private void ApplyLaserHooks(bool active)
+    {
+        if (_laserWindow is not { } window)
+            return;
+        if (active && !_laserHooked)
+        {
+            window.PreviewMouseDown += LaserWindowMouseDown;
+            window.PreviewMouseMove += LaserWindowMouseMove;
+            window.PreviewMouseUp += LaserWindowMouseUp;
+            window.PreviewStylusDown += LaserWindowStylusDown;
+            window.PreviewStylusMove += LaserWindowStylusMove;
+            window.PreviewStylusUp += LaserWindowStylusUp;
+            _laserHooked = true;
+        }
+        else if (!active && _laserHooked)
+        {
+            UnhookLaserWindow(window);
+        }
+    }
+
+    private void UnhookLaserWindow(Window window)
     {
         window.PreviewMouseDown -= LaserWindowMouseDown;
         window.PreviewMouseMove -= LaserWindowMouseMove;
@@ -87,6 +107,15 @@ public partial class InkToolBar
         window.PreviewStylusDown -= LaserWindowStylusDown;
         window.PreviewStylusMove -= LaserWindowStylusMove;
         window.PreviewStylusUp -= LaserWindowStylusUp;
+        _laserHooked = false;
+    }
+
+    private void DetachLaserHost(Window window)
+    {
+        if (_laserHooked)
+            UnhookLaserWindow(window);
+        if (_laserWindow == window)
+            _laserWindow = null;
         LaserLayer.IsActive = false;
     }
 
@@ -171,12 +200,14 @@ public partial class InkToolBar
         {
             vm.InkTool.SetActiveTool(InkToolMode.None);
             LaserLayer.IsActive = false;
+            ApplyLaserHooks(false);
             LaserLayer.Clear();
             UpdateBoardToolState("mouse");
             return;
         }
         vm.InkTool.SetActiveTool(InkToolMode.Laser);
         LaserLayer.IsActive = true;
+        ApplyLaserHooks(true);
         UpdateBoardToolState("laser");
     }
 
@@ -366,6 +397,104 @@ public partial class InkToolBar
             return;
         vm.InkTool.IsSmartEraser = ToggleSwitchSmartErase.IsOn;
         PageInkCanvas.SmartEraseEnabled = vm.InkTool.IsSmartEraser;
+    }
+
+    // ────────── 另存为（PDF / Word / UInk）──────────
+
+    private async void MoreRowSavePdf_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        CloseMorePalette();
+        if (Vm is not { } vm || vm.Pages.Count == 0)
+        {
+            ShowHint("先打开 PDF，再另存。", "另存为 PDF");
+            return;
+        }
+        var dialog = new SaveFileDialog
+        {
+            Filter = "PDF 文件 (*.pdf)|*.pdf",
+            Title = "另存为 PDF（含批注）",
+            DefaultExt = ".pdf",
+            FileName = vm.PdfName + "-批注.pdf"
+        };
+        if (dialog.ShowDialog() != true)
+            return;
+        try
+        {
+            int pages = await vm.SaveAnnotatedCopyAsync(dialog.FileName);
+            ShowHint(pages == 0
+                ? "当前没有批注，已原样另存。"
+                : $"已另存为 PDF：{pages} 页批注已烘进新文件。", "另存为 PDF");
+        }
+        catch (Exception ex)
+        {
+            App.Log("另存为 PDF", ex);
+            ShowHint("另存失败：" + ex.Message, "另存为 PDF");
+        }
+    }
+
+    private async void MoreRowSaveWord_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        CloseMorePalette();
+        if (Vm is not { } vm || vm.Pages.Count == 0)
+        {
+            ShowHint("先打开 PDF，再另存为 Word。", "另存为 Word");
+            return;
+        }
+        var dialog = new SaveFileDialog
+        {
+            Filter = "Word 文档 (*.docx)|*.docx",
+            Title = "另存为 Word",
+            DefaultExt = ".docx",
+            FileName = vm.PdfName + ".docx"
+        };
+        if (dialog.ShowDialog() != true)
+            return;
+        try
+        {
+            int pages = await vm.ExportWordAsync(dialog.FileName);
+            ShowHint($"已另存为 Word：{pages} 页（带批注，150dpi 图片）。", "另存为 Word");
+        }
+        catch (Exception ex)
+        {
+            App.Log("另存为 Word", ex);
+            ShowHint("另存失败：" + ex.Message, "另存为 Word");
+        }
+    }
+
+    private void MoreRowSaveUink_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        CloseMorePalette();
+        if (Vm is not { } vm || vm.Pages.Count == 0)
+        {
+            ShowHint("先打开 PDF，再另存 UInk。", "另存为 UInk");
+            return;
+        }
+        int strokeCount = 0;
+        foreach (var page in vm.Pages)
+            strokeCount += page.Strokes.Count;
+        if (strokeCount == 0)
+        {
+            ShowHint("这份文档还没有批注。", "另存为 UInk");
+            return;
+        }
+        var dialog = new SaveFileDialog
+        {
+            Filter = "UInk 墨迹 (*.uink)|*.uink",
+            Title = "另存为 UInk 墨迹",
+            DefaultExt = UInkSerializer.FileExtension,
+            FileName = UInkSerializer.SuggestFileName(vm.PdfName)
+        };
+        if (dialog.ShowDialog() != true)
+            return;
+        try
+        {
+            File.WriteAllBytes(dialog.FileName, UInkSerializer.Build(vm.Pages, vm.PdfName));
+            ShowHint($"已另存 {strokeCount} 笔墨迹（{UInkSerializer.WriteLevelText}）。", "另存为 UInk");
+        }
+        catch (Exception ex)
+        {
+            ShowHint("另存失败：" + ex.Message, "另存为 UInk");
+        }
     }
 
     /// <summary>轻提示（浮动栏没有状态栏，用消息框统一出面）。</summary>
