@@ -23,6 +23,8 @@ jobs:
           curl.exe -fsSL -o patch027.patch "https://aka.doubaocdn.com/s/PhujNU0G1O"
           $h = (Get-FileHash patch027.patch -Algorithm SHA256).Hash.ToLower()
           if ($h -ne "a6c0d4626db4858dc3172c9da36003a702642ce69ec96804abe5e09e5e2db16a") { throw "patch hash mismatch: $h" }
+          git config core.autocrlf false
+          git checkout-index -f -a
           git apply --whitespace=nowarn patch027.patch
           git status --short
 
