@@ -17,13 +17,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Apply 0.1.26 patch
+      - name: Apply 0.1.27 patch
         shell: pwsh
         run: |
-          curl.exe -fsSL -o patch026.patch "https://aka.doubaocdn.com/s/QqmUEMGbUd"
-          $h = (Get-FileHash patch026.patch -Algorithm SHA256).Hash.ToLower()
-          if ($h -ne "ad1ba0595f480c42e1397e45037f473d8fa9cc0b488dc82e62bac3627b25c3d5") { throw "patch hash mismatch: $h" }
-          git apply --whitespace=nowarn patch026.patch
+          curl.exe -fsSL -o patch027.patch "https://aka.doubaocdn.com/s/PhujNU0G1O"
+          $h = (Get-FileHash patch027.patch -Algorithm SHA256).Hash.ToLower()
+          if ($h -ne "a6c0d4626db4858dc3172c9da36003a702642ce69ec96804abe5e09e5e2db16a") { throw "patch hash mismatch: $h" }
+          git apply --whitespace=nowarn patch027.patch
           git status --short
 
       - uses: actions/setup-dotnet@v4
@@ -46,13 +46,13 @@ jobs:
           git config user.name "school-tools-bot"
           git config user.email "bot@users.noreply.github.com"
           git add -A
-          git commit -m "feat: 0.1.26 浮动栏拖动与防穿透"
+          git commit -m "feat: 0.1.27 浮动栏外观重做与贴边隐藏"
           if ($LASTEXITCODE -eq 0) { git push }
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create v0.1.26 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" `
-            --title "v0.1.26 浮动栏拖动与防穿透" `
-            --notes "这版按 Inkeys 与 ICPDF 的通行做法重做浮动栏交互。一、拆成拖动块与工具条两件：36×36 圆角拖动块，展开时显示九点，收起时显示当前工具的字（笔、擦、选、激），单击收起或展开，按住可以拖着整条栏走。二、撞边换向：工具条右侧放不下时，拖动块自动翻到右边、工具条向左展开，拖到窗口左半边也不会飞出屏幕。三、预设位置吸附：松手时离右下角（距右边、下边各 16 像素）24 像素以内，260 毫秒缓动吸过去，拖动途中浮出「预设位置」提示，位置写进设置，下次打开还在原处。四、防穿透：栏体连同 Viewbox 上下留白、拖动块本身都算进栏的输入区，起点落在栏上的笔整笔不落湿墨，点按钮手势带出来的墨点彻底没有了；缩放错位导致命中漏过时，画布侧还有一层兜底。五、收起展开是 220 毫秒缓动滑入滑出配合淡出，不是硬切。"
+          gh release create v0.1.27 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" `
+            --title "v0.1.27 浮动栏外观重做与贴边隐藏" `
+            --notes "这版把浮动栏整套外观按希沃白板与 ICCCE 的做法重做。一、栏体加高到 40、圆角放大到 12，按钮统一 34×34，选中态从「底部小蓝条」改成「图标 + 文字 + 整格强调色填充」：选中项整格填强调色、图标与文字反白，和希沃授课界面一致；文字标签这次默认打开，老配置首次启动会自动迁移过去。二、工具按 鼠标笔橡皮选择 / 形状激光更多 / 撤销闪抽 分成三组，组间加 1 像素细分隔线，一眼能分出功能块。三、拖动块加高到与栏体一样的 46 见方，九点更清晰，与栏边贴合更整齐。四、新增贴边自动隐藏：整条栏拖到窗口左或右边缘 12 像素以内松手，自动收起成拖动块，鼠标移到拖动块上滑出，移开 700 毫秒再收起。五、双击栏体空白处可收起，点在工具按钮上不会误触。"
