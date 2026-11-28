@@ -17,13 +17,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Apply 0.1.25 patch
+      - name: Apply 0.1.26 patch
         shell: pwsh
         run: |
-          curl.exe -fsSL -o patch025.patch "https://aka.doubaocdn.com/s/TFVMQ5IrKQ"
-          $h = (Get-FileHash patch025.patch -Algorithm SHA256).Hash.ToLower()
-          if ($h -ne "b0458202e5fd5ec3c45d3931781771e25062f075202972c97bc124a922712acf") { throw "patch hash mismatch: $h" }
-          git apply --whitespace=nowarn patch025.patch
+          curl.exe -fsSL -o patch026.patch "https://aka.doubaocdn.com/s/QqmUEMGbUd"
+          $h = (Get-FileHash patch026.patch -Algorithm SHA256).Hash.ToLower()
+          if ($h -ne "ad1ba0595f480c42e1397e45037f473d8fa9cc0b488dc82e62bac3627b25c3d5") { throw "patch hash mismatch: $h" }
+          git apply --whitespace=nowarn patch026.patch
           git status --short
 
       - uses: actions/setup-dotnet@v4
@@ -46,13 +46,13 @@ jobs:
           git config user.name "school-tools-bot"
           git config user.email "bot@users.noreply.github.com"
           git add -A
-          git commit -m "feat: 0.1.25 滚动与打开性能优化"
+          git commit -m "feat: 0.1.26 浮动栏拖动与防穿透"
           if ($LASTEXITCODE -eq 0) { git push }
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create v0.1.25 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" `
-            --title "v0.1.25 滚动与打开性能" `
-            --notes "本次是性能专项，功能与 0.1.24 一致。一、滚动与惯性滚动期间，页面与缩略图位图改走线性重采样，停下 260 毫秒才恢复高质量：整页位图动辄 3000 到 4000 像素宽，每帧用高质量重采样是长文档滚动掉帧的主要来源。二、滚出缓冲区的页面，排队中的渲染直接作废，不再白渲染整张约 20MB 的位图、占着并发名额；快速翻过十几页时可见页出图明显更快。三、页面渲染并发改成按 CPU 核数自适应（2 到 3 路），像素旋转与位图构造这些活能并行跑。四、打开文档时，取页尺寸与读墨迹库改成并行执行，几百页课件加大墨迹库能省上百毫秒；所有页尺寸收进一次 PDFium 锁内算完，原来每页各拿一次锁。五、启动时把线程池最小线程数抬到核数以上，打开文档瞬间的取尺寸、读库、渲染首屏不再排队等线程池补线程。六、页面与缩略图的采样质量切换统一由一个交互状态驱动，缩放与滚动互不打断。"
+          gh release create v0.1.26 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" `
+            --title "v0.1.26 浮动栏拖动与防穿透" `
+            --notes "这版按 Inkeys 与 ICPDF 的通行做法重做浮动栏交互。一、拆成拖动块与工具条两件：36×36 圆角拖动块，展开时显示九点，收起时显示当前工具的字（笔、擦、选、激），单击收起或展开，按住可以拖着整条栏走。二、撞边换向：工具条右侧放不下时，拖动块自动翻到右边、工具条向左展开，拖到窗口左半边也不会飞出屏幕。三、预设位置吸附：松手时离右下角（距右边、下边各 16 像素）24 像素以内，260 毫秒缓动吸过去，拖动途中浮出「预设位置」提示，位置写进设置，下次打开还在原处。四、防穿透：栏体连同 Viewbox 上下留白、拖动块本身都算进栏的输入区，起点落在栏上的笔整笔不落湿墨，点按钮手势带出来的墨点彻底没有了；缩放错位导致命中漏过时，画布侧还有一层兜底。五、收起展开是 220 毫秒缓动滑入滑出配合淡出，不是硬切。"
