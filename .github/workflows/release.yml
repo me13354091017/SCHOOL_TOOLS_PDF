@@ -1,6 +1,6 @@
-name: Build and Release
+name: Cleanup 0.1.27
 
-# 只在 workflow 自身变更时触发（日常提交不打包）；也支持在 Actions 页面手动 Run workflow。
+# 临时清理工作流：删掉 v0.1.27 的 Release 与 tag；后续发新版时再改回构建流程。
 on:
   push:
     branches: [main]
@@ -12,49 +12,14 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    runs-on: windows-latest
+  cleanup:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Apply 0.1.27 patch
-        shell: pwsh
-        run: |
-          curl.exe -fsSL -o patch027.patch "https://aka.doubaocdn.com/s/PhujNU0G1O"
-          $h = (Get-FileHash patch027.patch -Algorithm SHA256).Hash.ToLower()
-          if ($h -ne "a6c0d4626db4858dc3172c9da36003a702642ce69ec96804abe5e09e5e2db16a") { throw "patch hash mismatch: $h" }
-          git config core.autocrlf false
-          git checkout-index -f -a
-          git apply --whitespace=nowarn patch027.patch
-          git status --short
-
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '10.0.x'
-
-      - name: Publish win-x64 (self-contained)
-        run: dotnet publish SCHOOL_PDF/SCHOOL_TOOLS_PDF.csproj -c Release -r win-x64 --self-contained
-
-      - name: Install Inno Setup
-        run: choco install innosetup --no-progress -y
-
-      - name: Compile installer
-        # CI 里的 choco 包不带 Languages 语言包，用 /DUseEnglishOnly=1 走英文向导（本地编译仍默认中文）
-        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DArch=x64 /DUseEnglishOnly=1 SCHOOL_PDF\installer.iss'
-
-      - name: Commit source to main
-        shell: pwsh
-        run: |
-          git config user.name "school-tools-bot"
-          git config user.email "bot@users.noreply.github.com"
-          git add -A
-          git commit -m "feat: 0.1.27 浮动栏外观重做与贴边隐藏"
-          if ($LASTEXITCODE -eq 0) { git push }
-
-      - name: Create GitHub Release
+      - name: Delete release and tag
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create v0.1.27 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" `
-            --title "v0.1.27 浮动栏外观重做与贴边隐藏" `
-            --notes "这版把浮动栏整套外观按希沃白板与 ICCCE 的做法重做。一、栏体加高到 40、圆角放大到 12，按钮统一 34×34，选中态从「底部小蓝条」改成「图标 + 文字 + 整格强调色填充」：选中项整格填强调色、图标与文字反白，和希沃授课界面一致；文字标签这次默认打开，老配置首次启动会自动迁移过去。二、工具按 鼠标笔橡皮选择 / 形状激光更多 / 撤销闪抽 分成三组，组间加 1 像素细分隔线，一眼能分出功能块。三、拖动块加高到与栏体一样的 46 见方，九点更清晰，与栏边贴合更整齐。四、新增贴边自动隐藏：整条栏拖到窗口左或右边缘 12 像素以内松手，自动收起成拖动块，鼠标移到拖动块上滑出，移开 700 毫秒再收起。五、双击栏体空白处可收起，点在工具按钮上不会误触。"
+          gh release delete v0.1.27 --yes --cleanup-tag || true
+          git push origin :refs/tags/v0.1.27 || true
+          gh release list || true
