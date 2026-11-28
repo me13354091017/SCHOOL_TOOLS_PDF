@@ -20,12 +20,13 @@ jobs:
       - name: Apply 0.1.28 patch
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           curl.exe -fsSL -o patch028.patch "https://aka.doubaocdn.com/s/FjPtCUE9R5"
           $h = (Get-FileHash patch028.patch -Algorithm SHA256).Hash.ToLower()
           if ($h -ne "7e912bdbf2095ee53fd765defc6331b7c5b1a7631f7f5ad9b8bc6899ddcecc23") { throw "patch hash mismatch: $h" }
-          git config core.autocrlf false
-          git checkout-index -f -a
-          git apply --whitespace=nowarn patch028.patch
+          git apply --ignore-whitespace --whitespace=nowarn patch028.patch
+          if ($LASTEXITCODE -ne 0) { throw "git apply failed: $LASTEXITCODE" }
+          if (-not (Select-String -Path SCHOOL_PDF/installer.iss -Pattern 'MyAppVersion "0.1.28"' -Quiet)) { throw "installer.iss 未升到 0.1.28，补丁没生效" }
           Remove-Item patch028.patch -Force
           git status --short
 
@@ -51,10 +52,13 @@ jobs:
           git commit -m "feat: 0.1.28 浮动栏还原演示稿 + 另存为 + 打开提速"
           if ($LASTEXITCODE -eq 0) { git push }
 
-      - name: Create GitHub Release
+      - name: Replace GitHub Release
+        shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          gh release delete v0.1.28 --yes --cleanup-tag 2>$null
+          git push origin :refs/tags/v0.1.28 2>$null
           gh release create v0.1.28 "SCHOOL_PDF/dist/SCHOOL_TOOLS_PDF_x64_setup.exe" `
             --title "v0.1.28 浮动栏还原演示稿 + 另存为 + 打开提速" `
             --notes "这版把浮动栏严格按演示稿还原，并补上另存为与打开提速。一、浮动栏：栏高 36、圆角 5、#F5F5F7 不透明底、无边框，按钮 30×32、间距 2，图标 17 号；选中态按演示稿用 #D8DCE2 底色 + 底部 13×3 强调色小条，去掉文字标签和 0.1.27 的分组分隔线；拖动块 36 见方、九点 18。二、激光笔并入笔这一组（笔旁边就是激光），并改成只在激光模式才订阅窗口级笔/鼠标事件，平时书写不再经过激光处理器；激光采样阈值提高到 3 像素、上限 1200 点、20ms 统一重绘，长轨迹更跟手。三、新增另存为：PDF（把所有批注烘进新文件，原文件不动）、Word（每页 150dpi 图片写进 .docx，Word 直接能开）、UInk 墨迹，都在文件菜单里。四、打开 PDF 提速：墨迹库的文件指纹按「路径 + 大小 + 修改时间」缓存，命中就跳过整文件重新哈希，百兆教材再开快一截。"
